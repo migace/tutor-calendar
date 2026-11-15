@@ -1,6 +1,6 @@
 [project]
 name = "tutor-calendar"
-version = "0.1.0"
+version = "0.2.0"
 description = "Booking calendar for independent tutors"
 requires-python = ">=3.12"
 dependencies = [
@@ -8,6 +8,7 @@ dependencies = [
     "asyncpg>=0.30",
     "fastapi>=0.115",
     "pydantic-settings>=2.4",
+    "pydantic[email]>=2.8",
     "sqlalchemy[asyncio]>=2.0.30",
     # Windows and slim containers ship no IANA database; zoneinfo falls back to this.
     "tzdata>=2024.1",

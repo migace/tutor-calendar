@@ -18,4 +18,6 @@ RUN useradd --system app
 USER app
 
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn tutor_calendar.api.main:app --host 0.0.0.0 --port 8000"]
+# Migrating and storing the demo tutor on start keeps `docker compose up` to one
+# step. Both are safe to repeat.
+CMD ["sh", "-c", "alembic upgrade head && python -m tutor_calendar.demo && exec uvicorn tutor_calendar.api.main:app --host 0.0.0.0 --port 8000"]

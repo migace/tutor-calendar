@@ -22,6 +22,7 @@ from tutor_calendar.domain.scheduling import (
     Weekday,
     WeeklyRule,
     generate_slots,
+    slot_starting_at,
 )
 
 Case = tuple[Schedule, TimeRange]
@@ -196,3 +197,21 @@ def test_a_narrower_window_returns_a_subset_of_the_same_grid(
     wide = generate_slots(schedule, window)
 
     assert generate_slots(schedule, narrower) == [slot for slot in wide if narrower.contains(slot)]
+
+
+@given(cases(), st.data())
+@thorough
+def test_a_start_can_be_booked_exactly_when_the_listing_shows_it(
+    case: Case, data: st.DataObject
+) -> None:
+    schedule, window = case
+    lesson = schedule.lesson_duration
+    listed = {slot.start: slot for slot in generate_slots(schedule, window)}
+    # Real starts, and the instants around them where an off-by-one would hide.
+    shifts = [-lesson, -timedelta(minutes=1), timedelta(0), timedelta(minutes=1), lesson]
+    nearby = [start + shift for start in listed for shift in shifts]
+    probes = data.draw(st.lists(st.sampled_from(nearby), max_size=8)) if nearby else []
+
+    for probe in probes:
+        if window.contains(TimeRange(probe, probe + lesson)):
+            assert slot_starting_at(schedule, probe) == listed.get(probe), probe

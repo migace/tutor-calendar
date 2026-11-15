@@ -3,18 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from tutor_calendar.application.ports import Clock, TutorRepository
+from tutor_calendar.application.errors import InvalidWindowError, TutorNotFoundError
+from tutor_calendar.application.ports import BookingRepository, Clock, TutorRepository
 from tutor_calendar.domain.scheduling import TimeRange, Tutor, generate_slots
-
-
-class TutorNotFoundError(Exception):
-    def __init__(self, slug: str) -> None:
-        super().__init__(f"no tutor with slug {slug!r}")
-        self.slug = slug
-
-
-class InvalidWindowError(Exception):
-    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,8 +20,9 @@ class ListAvailableSlots:
     DEFAULT_WINDOW = timedelta(days=14)
     MAX_WINDOW = timedelta(days=62)
 
-    def __init__(self, tutors: TutorRepository, clock: Clock) -> None:
+    def __init__(self, tutors: TutorRepository, bookings: BookingRepository, clock: Clock) -> None:
         self._tutors = tutors
+        self._bookings = bookings
         self._clock = clock
 
     async def execute(
@@ -58,4 +50,5 @@ class ListAvailableSlots:
             raise InvalidWindowError(f"window cannot be longer than {self.MAX_WINDOW.days} days")
 
         window = TimeRange(window_start, window_end)
-        return AvailableSlots(tutor, generate_slots(tutor.schedule, window))
+        busy = await self._bookings.busy_between(tutor.id, window)
+        return AvailableSlots(tutor, generate_slots(tutor.schedule, window, busy))

@@ -1,21 +1,5 @@
-from collections.abc import Iterator
-from datetime import UTC, datetime
-
 import pytest
 from fastapi.testclient import TestClient
-
-from tutor_calendar.adapters.clock import FixedClock
-from tutor_calendar.api.main import create_app
-
-# A Monday morning. The demo tutor teaches Mon-Thu 15:00-19:00 and Sat 09:00-13:00
-# Warsaw time (UTC+1 in November) and needs 12 hours' notice.
-NOW = datetime(2026, 11, 16, 8, 0, tzinfo=UTC)
-
-
-@pytest.fixture
-def client() -> Iterator[TestClient]:
-    with TestClient(create_app(clock=FixedClock(NOW))) as test_client:
-        yield test_client
 
 
 def test_liveness(client: TestClient) -> None:

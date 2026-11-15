@@ -7,10 +7,7 @@ from pydantic import AwareDatetime
 
 from tutor_calendar.api.deps import ListAvailableSlotsDep
 from tutor_calendar.api.schemas import SlotOut, SlotsResponse, TutorOut
-from tutor_calendar.application.list_available_slots import (
-    InvalidWindowError,
-    TutorNotFoundError,
-)
+from tutor_calendar.application.errors import InvalidWindowError, TutorNotFoundError
 
 router = APIRouter(tags=["slots"])
 
