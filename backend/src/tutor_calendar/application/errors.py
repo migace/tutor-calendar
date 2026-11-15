@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tutor_calendar.domain.scheduling import TimeRange
+
 
 class TutorNotFoundError(Exception):
     def __init__(self, slug: str) -> None:
@@ -45,3 +47,30 @@ class NotSignedInError(Exception):
 
 class InvalidAvailabilityError(Exception):
     """The weekly hours a tutor asked for contradict each other."""
+
+
+class LessonNotFoundError(Exception):
+    def __init__(self) -> None:
+        super().__init__("no such lesson")
+
+
+class LessonChangeRefusedError(Exception):
+    """The lesson is not in a state that allows what was asked."""
+
+
+class SeriesConflictError(Exception):
+    """Some lessons of a weekly series would overlap lessons already booked."""
+
+    def __init__(self, slots: list[TimeRange]) -> None:
+        super().__init__("some of these lessons overlap lessons that are already booked")
+        # The lessons of the series that are in the way of something.
+        self.slots = slots
+
+
+class InvalidSeriesError(Exception):
+    pass
+
+
+class SeriesNotFoundError(Exception):
+    def __init__(self) -> None:
+        super().__init__("no such series")

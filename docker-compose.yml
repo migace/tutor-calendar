@@ -21,6 +21,8 @@ services:
     build: ./backend
     environment:
       TC_DATABASE_URL: postgresql+asyncpg://tutor:tutor@db:5432/tutor_calendar
+      # For local use only, so that booking links survive a restart of the container.
+      TC_SECRET_KEY: local-development-only-not-a-real-secret
     ports:
       - "8000:8000"
     depends_on:

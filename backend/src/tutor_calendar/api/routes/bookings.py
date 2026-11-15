@@ -74,4 +74,6 @@ async def book_lesson(
     if result.replayed:
         response.headers["Idempotency-Replayed"] = "true"
     slot = result.booking.slot
-    return BookingOut(id=result.booking.id, start=slot.start, end=slot.end)
+    return BookingOut(
+        id=result.booking.id, start=slot.start, end=slot.end, manage_token=result.manage_token
+    )

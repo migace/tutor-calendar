@@ -118,6 +118,7 @@ export function BookingPage({
           slotLabel={describe(stage.booking)}
           tutorName={tutor.display_name}
           lessonMinutes={tutor.lesson_minutes}
+          manageToken={stage.booking.manage_token}
           onBookAnother={() => setStage(START)}
         />
       )}

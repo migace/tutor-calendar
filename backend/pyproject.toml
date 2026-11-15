@@ -1,6 +1,6 @@
 [project]
 name = "tutor-calendar"
-version = "0.3.0"
+version = "0.4.0"
 description = "Booking calendar for independent tutors"
 requires-python = ">=3.12"
 dependencies = [

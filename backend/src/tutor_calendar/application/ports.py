@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from tutor_calendar.domain.scheduling import Booking, TimeRange, Tutor, WeeklyRule
+from tutor_calendar.domain.scheduling import (
+    Booking,
+    LessonSeries,
+    TimeRange,
+    Tutor,
+    WeeklyRule,
+)
 
 
 class Clock(Protocol):
@@ -32,11 +39,50 @@ class TutorRepository(Protocol):
 
 class BookingRepository(Protocol):
     async def busy_between(self, tutor_id: UUID, window: TimeRange) -> list[TimeRange]:
-        """Times inside or overlapping ``window`` that the tutor's bookings occupy."""
+        """Times inside or overlapping ``window`` that the tutor's lessons occupy.
+
+        Cancelled lessons occupy nothing.
+        """
         ...
 
     async def starting_between(self, tutor_id: UUID, window: TimeRange) -> list[Booking]:
-        """The tutor's bookings that start inside ``window``, earliest first."""
+        """The tutor's lessons that start inside ``window``, earliest first.
+
+        Includes cancelled ones: a tutor wants to see what was called off.
+        """
+        ...
+
+    async def get(self, booking_id: UUID) -> Booking | None: ...
+
+    async def apply(self, changes: Sequence[tuple[Booking, Booking]]) -> int:
+        """Store new states of lessons, each given as (before, after).
+
+        A change is applied only if the stored lesson still has the status it
+        had in ``before``, so two people acting on one lesson at the same time
+        cannot both win. Returns how many changes were applied; all of them
+        happen together or, on an error, none.
+        """
+        ...
+
+    async def series(self, tutor_id: UUID) -> list[LessonSeries]:
+        """The tutor's weekly series, oldest first."""
+        ...
+
+    async def get_series(self, series_id: UUID) -> LessonSeries | None: ...
+
+    async def lessons_of_series(self, series_id: UUID) -> list[Booking]:
+        """Every lesson of a series, cancelled ones included, earliest first."""
+        ...
+
+    async def add_series(
+        self, series: LessonSeries, lessons: Sequence[Booking], *, skip_conflicts: bool
+    ) -> list[Booking]:
+        """Store a series and its lessons as one change, and return those stored.
+
+        A lesson that overlaps one already booked is left out when
+        ``skip_conflicts`` is set. Otherwise nothing at all is stored and
+        ``SeriesConflictError`` names the days in the way.
+        """
         ...
 
     async def get_by_idempotency_key(self, tutor_id: UUID, key: str) -> Booking | None: ...
@@ -93,3 +139,13 @@ class Email:
 
 class Mailer(Protocol):
     async def send(self, email: Email) -> None: ...
+
+
+class ManageLinks(Protocol):
+    """Unforgeable tokens that let a student manage one booking without an account."""
+
+    def token_for(self, booking_id: UUID) -> str: ...
+
+    def booking_id_in(self, token: str) -> UUID | None:
+        """The booking a token was issued for, or None if it was not issued by us."""
+        ...

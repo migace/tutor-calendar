@@ -7,6 +7,7 @@ an integration test checks that the two descriptions agree.
 from __future__ import annotations
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Date,
@@ -48,9 +49,12 @@ tutors = Table(
     Column("timezone", Text, nullable=False),
     Column("lesson_minutes", Integer, nullable=False),
     Column("min_notice_minutes", Integer, nullable=False),
+    # NULL means cancelling is always free.
+    Column("cancellation_notice_minutes", Integer, nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("lesson_minutes > 0", name="tutors_lesson_minutes_positive"),
     CheckConstraint("min_notice_minutes >= 0", name="tutors_min_notice_not_negative"),
+    CheckConstraint("cancellation_notice_minutes > 0", name="tutors_cancellation_notice_positive"),
 )
 
 # Addresses are compared without regard to case, so they are unique that way too.
@@ -78,6 +82,22 @@ days_off = Table(
     Column("day", Date, primary_key=True),
 )
 
+lesson_series = Table(
+    "lesson_series",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("tutor_id", Uuid, ForeignKey("tutors.id", ondelete="RESTRICT"), nullable=False),
+    Column("student_name", Text, nullable=False),
+    Column("student_email", Text, nullable=False),
+    Column("first_day", Date, nullable=False),
+    # A wall-clock time in the tutor's zone, like availability rules.
+    Column("start_time", Time(timezone=False), nullable=False),
+    Column("weeks", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("weeks BETWEEN 1 AND 52", name="lesson_series_weeks_valid"),
+    Index("lesson_series_tutor_id_idx", "tutor_id"),
+)
+
 bookings = Table(
     "bookings",
     metadata,
@@ -89,14 +109,37 @@ bookings = Table(
     Column("student_email", Text, nullable=False),
     Column("idempotency_key", Text, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("status", Text, nullable=False),
+    Column("cancelled_by", Text, nullable=True),
+    Column("cancelled_at", DateTime(timezone=True), nullable=True),
+    Column("cancelled_late", Boolean, nullable=True),
+    Column("series_id", Uuid, ForeignKey("lesson_series.id", ondelete="RESTRICT"), nullable=True),
+    Index("bookings_series_id_idx", "series_id"),
+    CheckConstraint(
+        "status IN ('confirmed', 'cancelled', 'no_show')", name="bookings_status_valid"
+    ),
+    CheckConstraint("cancelled_by IN ('student', 'tutor')", name="bookings_cancelled_by_valid"),
+    CheckConstraint(
+        "(status = 'cancelled') = (cancelled_by IS NOT NULL)"
+        " AND (cancelled_by IS NULL) = (cancelled_at IS NULL)"
+        " AND (cancelled_by IS NULL) = (cancelled_late IS NULL)",
+        name="bookings_cancellation_is_complete",
+    ),
     CheckConstraint(
         "NOT isempty(during) AND NOT lower_inf(during) AND NOT upper_inf(during)"
         " AND lower_inc(during) AND NOT upper_inc(during)",
         name="bookings_during_is_half_open",
     ),
     UniqueConstraint("tutor_id", "idempotency_key", name=BOOKINGS_IDEMPOTENCY_KEY),
-    # The guarantee against double booking. See ADR 0003.
-    ExcludeConstraint(("tutor_id", "="), ("during", "&&"), name=BOOKINGS_NO_OVERLAP, using="gist"),
+    # The guarantee against double booking (ADR 0003). A cancelled lesson gives
+    # its time back, so it is left out of the comparison (ADR 0006).
+    ExcludeConstraint(
+        ("tutor_id", "="),
+        ("during", "&&"),
+        name=BOOKINGS_NO_OVERLAP,
+        using="gist",
+        where=text("status <> 'cancelled'"),
+    ),
 )
 
 # Both tables are keyed by the SHA-256 digest of a secret, never the secret. See ADR 0005.

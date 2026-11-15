@@ -7,14 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tutor_calendar.application.book_lesson import BookLesson
 from tutor_calendar.application.errors import NotSignedInError
+from tutor_calendar.application.lessons import ChangeOwnLesson, ManageBooking
 from tutor_calendar.application.list_available_slots import ListAvailableSlots
 from tutor_calendar.application.ports import (
     BookingRepository,
     Clock,
     CredentialStore,
     Mailer,
+    ManageLinks,
     TutorRepository,
 )
+from tutor_calendar.application.series import EndSeries, ListSeries, StartSeries
 from tutor_calendar.application.sign_in import Authenticate, RequestSignInLink, SignIn, SignOut
 from tutor_calendar.application.tutor_panel import ChangeWeeklyHours, ShowWeek
 from tutor_calendar.config import Settings
@@ -51,8 +54,32 @@ def get_list_available_slots(request: Request) -> ListAvailableSlots:
     return ListAvailableSlots(_tutors(request), _bookings(request), _clock(request))
 
 
+def _links(request: Request) -> ManageLinks:
+    return cast(ManageLinks, request.app.state.links)
+
+
 def get_book_lesson(request: Request) -> BookLesson:
-    return BookLesson(_tutors(request), _bookings(request), _clock(request))
+    return BookLesson(_tutors(request), _bookings(request), _links(request), _clock(request))
+
+
+def get_manage_booking(request: Request) -> ManageBooking:
+    return ManageBooking(_bookings(request), _tutors(request), _links(request), _clock(request))
+
+
+def get_change_own_lesson(request: Request) -> ChangeOwnLesson:
+    return ChangeOwnLesson(_bookings(request), _clock(request))
+
+
+def get_start_series(request: Request) -> StartSeries:
+    return StartSeries(_bookings(request), _clock(request))
+
+
+def get_list_series(request: Request) -> ListSeries:
+    return ListSeries(_bookings(request))
+
+
+def get_end_series(request: Request) -> EndSeries:
+    return EndSeries(_bookings(request), _clock(request))
 
 
 def get_request_sign_in_link(request: Request) -> RequestSignInLink:
@@ -96,6 +123,11 @@ EngineDep = Annotated[AsyncEngine, Depends(get_engine)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 ListAvailableSlotsDep = Annotated[ListAvailableSlots, Depends(get_list_available_slots)]
 BookLessonDep = Annotated[BookLesson, Depends(get_book_lesson)]
+ManageBookingDep = Annotated[ManageBooking, Depends(get_manage_booking)]
+ChangeOwnLessonDep = Annotated[ChangeOwnLesson, Depends(get_change_own_lesson)]
+StartSeriesDep = Annotated[StartSeries, Depends(get_start_series)]
+ListSeriesDep = Annotated[ListSeries, Depends(get_list_series)]
+EndSeriesDep = Annotated[EndSeries, Depends(get_end_series)]
 RequestSignInLinkDep = Annotated[RequestSignInLink, Depends(get_request_sign_in_link)]
 SignInDep = Annotated[SignIn, Depends(get_sign_in)]
 SignOutDep = Annotated[SignOut, Depends(get_sign_out)]

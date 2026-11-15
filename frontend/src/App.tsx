@@ -3,8 +3,10 @@ import { Link, Navigate, Route, Routes, useParams } from "react-router";
 import { SignInPage } from "./features/auth/SignInPage";
 import { VerifyPage } from "./features/auth/VerifyPage";
 import { BookingPage } from "./features/booking/BookingPage";
+import { ManageBookingPage } from "./features/booking/ManageBookingPage";
 import { AvailabilityPage } from "./features/panel/AvailabilityPage";
 import { PanelLayout } from "./features/panel/PanelLayout";
+import { SeriesPage } from "./features/panel/SeriesPage";
 import { WeekPage } from "./features/panel/WeekPage";
 import { Notice } from "./ui";
 
@@ -34,10 +36,12 @@ export function App() {
       {/* Until tutors can sign up, the demo tutor's page doubles as the home page. */}
       <Route path="/" element={<Navigate to="/book/demo" replace />} />
       <Route path="/book/:slug" element={<PublicBookingPage />} />
+      <Route path="/booking" element={<ManageBookingPage />} />
       <Route path="/sign-in" element={<SignInPage />} />
       <Route path="/sign-in/verify" element={<VerifyPage />} />
       <Route path="/panel" element={<PanelLayout />}>
         <Route index element={<WeekPage />} />
+        <Route path="regulars" element={<SeriesPage />} />
         <Route path="availability" element={<AvailabilityPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />

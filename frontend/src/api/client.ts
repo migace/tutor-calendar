@@ -12,17 +12,23 @@ export type Week = components["schemas"]["WeekOut"];
 export type Lesson = components["schemas"]["LessonOut"];
 export type Availability = components["schemas"]["AvailabilityOut"];
 export type WeeklyRule = components["schemas"]["WeeklyRuleModel"];
+export type ManagedBooking = components["schemas"]["ManagedBookingOut"];
+export type Series = components["schemas"]["SeriesOut"];
+export type SeriesPlan = components["schemas"]["SeriesIn"];
 
 export class ApiError extends Error {
   readonly status: number;
   /** The server's own explanation, when it gave one in plain words. */
   readonly detail: string | null;
+  /** The whole error body, for the few errors that carry more than a sentence. */
+  readonly body: unknown;
 
-  constructor(status: number, message: string, detail: string | null = null) {
+  constructor(status: number, message: string, detail: string | null = null, body: unknown = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.body = body;
   }
 }
 
@@ -38,6 +44,7 @@ async function fail(response: Response): Promise<never> {
     response.status,
     `Request failed with status ${response.status}`,
     typeof detail === "string" ? detail : null,
+    body,
   );
 }
 
@@ -134,4 +141,75 @@ export async function saveAvailability(rules: WeeklyRule[]): Promise<Availabilit
     body: JSON.stringify({ rules }),
   });
   return parse<Availability>(response);
+}
+
+const withManageToken = (token: string) => ({
+  Accept: "application/json",
+  // In a header, not the address, so the token stays out of server logs.
+  Authorization: `Bearer ${token}`,
+});
+
+/** The booking a manage token belongs to, as the student who made it sees it. */
+export async function fetchManagedBooking(
+  token: string,
+  signal?: AbortSignal,
+): Promise<ManagedBooking> {
+  const response = await fetch("/api/v1/booking", { headers: withManageToken(token), signal });
+  return parse<ManagedBooking>(response);
+}
+
+export async function cancelManagedBooking(token: string): Promise<ManagedBooking> {
+  const response = await fetch("/api/v1/booking", {
+    method: "DELETE",
+    headers: withManageToken(token),
+  });
+  return parse<ManagedBooking>(response);
+}
+
+/** What a tutor can do to one of their lessons. */
+export async function changeLesson(
+  lessonId: string,
+  change: "cancellation" | "no-show",
+): Promise<Lesson> {
+  const response = await fetch(`/api/v1/me/lessons/${encodeURIComponent(lessonId)}/${change}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return parse<Lesson>(response);
+}
+
+export async function fetchSeries(signal?: AbortSignal): Promise<Series[]> {
+  const response = await fetch("/api/v1/me/series", {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return parse<Series[]>(response);
+}
+
+/**
+ * Books a weekly series under an id the caller chose. Sending the same plan
+ * with the same id again returns the series the first attempt created.
+ */
+export async function startSeries(seriesId: string, plan: SeriesPlan): Promise<Series> {
+  const response = await fetch(`/api/v1/me/series/${encodeURIComponent(seriesId)}`, {
+    method: "PUT",
+    headers: JSON_BODY,
+    body: JSON.stringify(plan),
+  });
+  return parse<Series>(response);
+}
+
+/** Days ("YYYY-MM-DD") on which a refused series clashed with existing lessons. */
+export function conflictsIn(error: unknown): string[] | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  const conflicts = (error.body as { conflicts?: unknown } | null)?.conflicts;
+  return Array.isArray(conflicts) ? conflicts.map(String) : null;
+}
+
+export async function endSeries(seriesId: string): Promise<Series> {
+  const response = await fetch(`/api/v1/me/series/${encodeURIComponent(seriesId)}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  return parse<Series>(response);
 }

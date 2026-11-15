@@ -6,6 +6,7 @@ from datetime import UTC, datetime, time, timedelta
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+from tutor_calendar.adapters.manage_links import HmacManageLinks
 from tutor_calendar.domain.scheduling import (
     Booking,
     Schedule,
@@ -23,6 +24,7 @@ NOW = datetime(2026, 11, 16, 8, 0, tzinfo=UTC)
 FIRST_SLOT = datetime(2026, 11, 17, 14, 0, tzinfo=UTC)
 
 ANNA = Student("Anna Nowak", "anna@example.com")
+LINKS = HmacManageLinks("a-secret-used-only-by-the-tests-0123456789")
 
 
 def a_tutor(slug: str = "ewa") -> Tutor:

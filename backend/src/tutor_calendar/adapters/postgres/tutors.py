@@ -55,6 +55,11 @@ class PostgresTutorRepository:
                     days_off=frozenset(row.day for row in off),
                 ),
                 min_notice=tutor.min_notice_minutes * _MINUTE,
+                cancellation_notice=(
+                    None
+                    if tutor.cancellation_notice_minutes is None
+                    else tutor.cancellation_notice_minutes * _MINUTE
+                ),
             )
 
     async def replace_weekly_hours(self, tutor_id: UUID, rules: tuple[WeeklyRule, ...]) -> None:
@@ -84,6 +89,11 @@ class PostgresTutorRepository:
                     timezone=schedule.timezone.key,
                     lesson_minutes=schedule.lesson_duration // _MINUTE,
                     min_notice_minutes=tutor.min_notice // _MINUTE,
+                    cancellation_notice_minutes=(
+                        None
+                        if tutor.cancellation_notice is None
+                        else tutor.cancellation_notice // _MINUTE
+                    ),
                 )
                 .on_conflict_do_nothing(index_elements=[tutors.c.slug])
                 .returning(tutors.c.id)

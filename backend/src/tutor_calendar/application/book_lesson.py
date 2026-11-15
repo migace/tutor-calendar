@@ -9,7 +9,7 @@ from tutor_calendar.application.errors import (
     SlotNotOfferedError,
     TutorNotFoundError,
 )
-from tutor_calendar.application.ports import BookingRepository, Clock, TutorRepository
+from tutor_calendar.application.ports import BookingRepository, Clock, ManageLinks, TutorRepository
 from tutor_calendar.domain.scheduling import Booking, Student, slot_starting_at
 
 
@@ -18,6 +18,9 @@ class BookingResult:
     booking: Booking
     # True when this request repeated an earlier one and created nothing new.
     replayed: bool
+    # Lets the student look at and cancel this booking later. The same for a
+    # repeat as for the first attempt, because it is computed, not stored.
+    manage_token: str
 
 
 class BookLesson:
@@ -32,9 +35,16 @@ class BookLesson:
     the answer comes from ``BookingRepository.add``, which decides atomically.
     """
 
-    def __init__(self, tutors: TutorRepository, bookings: BookingRepository, clock: Clock) -> None:
+    def __init__(
+        self,
+        tutors: TutorRepository,
+        bookings: BookingRepository,
+        links: ManageLinks,
+        clock: Clock,
+    ) -> None:
         self._tutors = tutors
         self._bookings = bookings
+        self._links = links
         self._clock = clock
 
     async def execute(
@@ -52,7 +62,7 @@ class BookLesson:
         # the time has meanwhile slipped inside the notice period.
         earlier = await self._bookings.get_by_idempotency_key(tutor.id, idempotency_key)
         if earlier is not None:
-            return _replay(earlier, start, student)
+            return self._replay(earlier, start, student)
 
         now = self._clock.now()
         if start < now + tutor.min_notice:
@@ -65,11 +75,10 @@ class BookLesson:
         stored = await self._bookings.add(booking, idempotency_key)
         if stored.id != booking.id:
             # The same key arrived twice at once and the other request won.
-            return _replay(stored, start, student)
-        return BookingResult(stored, replayed=False)
+            return self._replay(stored, start, student)
+        return BookingResult(stored, replayed=False, manage_token=self._links.token_for(stored.id))
 
-
-def _replay(earlier: Booking, start: datetime, student: Student) -> BookingResult:
-    if earlier.slot.start != start or earlier.student != student:
-        raise IdempotencyKeyReusedError
-    return BookingResult(earlier, replayed=True)
+    def _replay(self, earlier: Booking, start: datetime, student: Student) -> BookingResult:
+        if earlier.slot.start != start or earlier.student != student:
+            raise IdempotencyKeyReusedError
+        return BookingResult(earlier, replayed=True, manage_token=self._links.token_for(earlier.id))

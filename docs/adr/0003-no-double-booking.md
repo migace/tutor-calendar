@@ -96,5 +96,5 @@ person, so there is nothing to gain from more.
 - The real guarantee can only be tested against a real database, so those tests
   need PostgreSQL running. Locally they are skipped without one; in CI they
   must run.
-- Cancelling a lesson (week 4) will have to free its time. The constraint will
-  then become partial: `WHERE status = 'confirmed'`.
+- Cancelling a lesson has to free its time. ADR 0006 makes the constraint
+  partial for that: `WHERE (status <> 'cancelled')`.

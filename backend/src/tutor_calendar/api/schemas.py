@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field, StringConstraints, field_validator
 
 from tutor_calendar.domain.scheduling.booking import MAX_EMAIL_LENGTH, MAX_NAME_LENGTH
+from tutor_calendar.domain.scheduling.recurrence import MAX_OCCURRENCES
 
 
 class TutorOut(BaseModel):
@@ -40,6 +41,25 @@ class BookingOut(BaseModel):
     id: UUID
     start: AwareDatetime
     end: AwareDatetime
+    manage_token: str = Field(
+        description="Lets whoever holds it view and cancel this booking. Keep it private."
+    )
+
+
+class ManagedBookingOut(BaseModel):
+    tutor_name: str
+    timezone: str = Field(description="IANA zone of the tutor")
+    start: AwareDatetime
+    end: AwareDatetime
+    student_name: str
+    status: str
+    cancelled_by: str | None
+    cancelled_late: bool | None
+    free_cancellation_until: AwareDatetime | None = Field(
+        description="Null when cancelling is free right up to the lesson"
+    )
+    can_cancel: bool
+    late_if_cancelled_now: bool
 
 
 class SignInLinkIn(BaseModel):
@@ -89,6 +109,43 @@ class LessonOut(BaseModel):
     end: AwareDatetime
     student_name: str
     student_email: str
+    status: str = Field(description="confirmed, cancelled or no_show")
+    cancelled_by: str | None
+    cancelled_late: bool | None
+    series_id: UUID | None = Field(description="Set when the lesson belongs to a weekly series")
+
+
+class SeriesIn(BaseModel):
+    student_name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_NAME_LENGTH)
+    ]
+    student_email: Annotated[EmailStr, Field(max_length=MAX_EMAIL_LENGTH)]
+    first_day: dt.date = Field(description="Day of the first lesson, on the tutor's calendar")
+    start: dt.time = Field(description="Wall-clock time in the tutor's zone, to the minute")
+    weeks: int = Field(ge=1, le=MAX_OCCURRENCES)
+    skip_conflicts: bool = Field(
+        default=False,
+        description="Leave out lessons that overlap something already booked, instead of failing",
+    )
+
+
+class SeriesOut(BaseModel):
+    id: UUID
+    student_name: str
+    student_email: str
+    first_day: dt.date
+    start: dt.time
+    weeks: int
+    lessons: list[LessonOut]
+    days_without_lesson: list[dt.date] = Field(
+        description="Days of the plan with no lesson: days off, skipped by a clock change, "
+        "or left out because of a conflict"
+    )
+
+
+class SeriesConflictOut(BaseModel):
+    detail: str
+    conflicts: list[dt.date] = Field(description="Days on which a lesson is already booked")
 
 
 class DayOut(BaseModel):
