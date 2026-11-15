@@ -160,7 +160,7 @@ describe("BookingPage", () => {
 
     const notice = await screen.findByRole("alert");
     expect(notice).toHaveTextContent("That time is no longer available");
-    expect(notice).toHaveFocus();
+    expect(screen.getByRole("heading", { name: "That time is no longer available" })).toHaveFocus();
     // A refusal is final: asking again would not help, so there is no retry.
     expect(posts).toHaveLength(1);
     await waitFor(() =>

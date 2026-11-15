@@ -9,9 +9,10 @@ looks different: the same students at the same times, paid for in blocks, with
 "can we move Thursday?" as the most common request. This project is built
 around that workflow.
 
-> **Status: week 2 of 6.** A visitor can see a tutor's free slots in their own
-> time zone and book one. There is no tutor panel, no recurring lessons and no
-> e-mail yet. See the [roadmap](#roadmap).
+> **Status: week 3 of 6.** A visitor can see a tutor's free slots in their own
+> time zone and book one. A tutor can sign in, see their week and change their
+> hours. There are no recurring lessons yet, and e-mail is written to the log
+> instead of being sent. See the [roadmap](#roadmap).
 
 ## What is interesting here
 
@@ -29,6 +30,18 @@ an idempotency key, so a retry after a timeout returns the booking the first
 attempt made. The page relies on that to retry failed requests on its own.
 [ADR 0004](docs/adr/0004-idempotent-booking-requests.md) covers the design and
 its one known gap.
+
+**Sign-in without passwords, and without the usual holes.** Tutors sign in with
+a single-use link. Tokens are stored only as digests, the link's token never
+reaches a server log, the session cookie cannot be read by scripts, and asking
+for a link does not reveal who has an account. A link opened in twelve browsers
+at once signs in exactly one. [ADR 0005](docs/adr/0005-sign-in-by-email-link.md)
+goes through each choice and what is still missing.
+
+**Fakes that cannot drift from the real thing.** Fast tests run against
+in-memory repositories. Each port has one set of contract tests that runs
+against both the fake and PostgreSQL, so the fake cannot quietly become more
+forgiving than the database. See [`tests/contract`](backend/tests/contract).
 
 **Time is modelled, not formatted.** A recurring rule ("Tuesdays 17:00-19:00")
 is a wall-clock fact in the tutor's zone; a lesson is a UTC instant. The slot
@@ -80,8 +93,12 @@ cd backend && uv sync && uv run alembic upgrade head && uv run python -m tutor_c
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open <http://localhost:5173>. The API documents itself at
-<http://localhost:8000/docs>.
+Open <http://localhost:5173> for the demo tutor's booking page. The API
+documents itself at <http://localhost:8000/docs>.
+
+To see the tutor panel, go to <http://localhost:5173/panel> and ask for a
+sign-in link for `demo@example.com`. E-mail is not sent yet: the message, with
+its link, appears in the output of the API.
 
 The second command migrates the database and stores a demo tutor, whose
 booking page is the one the frontend opens.
@@ -129,7 +146,8 @@ backend/tests/
   integration/   the schema and concurrent bookings, against PostgreSQL
 frontend/src/
   api/           generated types and a thin client
-  features/      one folder per user-facing feature
+  ui/            components that know nothing about tutors: Button, TextField, Notice
+  features/      booking, auth and panel: one folder per user-facing feature
 docs/adr/        architecture decision records
 ```
 
@@ -138,8 +156,8 @@ docs/adr/        architecture decision records
 1. **Scheduling core and walking skeleton** - done.
 2. **Booking a single lesson**: exclusion constraint against double booking, a
    concurrency test, idempotent requests, the public booking flow - done.
-3. Tutor panel: sign-in by e-mail link, week view, editing availability, the
-   start of a component library.
+3. **Tutor panel**: sign-in by e-mail link, week view, editing availability, the
+   start of a component library - done.
 4. Recurring lessons with exceptions, the lesson state machine, cancellation
    policy.
 5. Packages of hours as an append-only ledger, the parent's statement,

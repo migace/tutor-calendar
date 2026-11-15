@@ -30,6 +30,7 @@ def a_tutor(slug: str = "ewa") -> Tutor:
         id=uuid4(),
         slug=slug,
         display_name="Ewa Kowalska",
+        email=f"{slug}@example.com",
         schedule=Schedule(
             timezone=ZoneInfo("Europe/Warsaw"),
             lesson_duration=timedelta(minutes=45),

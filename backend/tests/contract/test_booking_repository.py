@@ -118,6 +118,21 @@ class BookingRepositoryContract:
             FIRST_SLOT + 2 * HOUR,
         ]
 
+    async def test_bookings_starting_in_a_window_come_back_whole_and_in_order(
+        self, repository: BookingRepository, tutor: Tutor, other_tutor: Tutor
+    ) -> None:
+        late = await repository.add(a_booking(tutor.id, FIRST_SLOT + 2 * HOUR), "key-1")
+        early = await repository.add(a_booking(tutor.id, FIRST_SLOT), "key-2")
+        await repository.add(a_booking(tutor.id, FIRST_SLOT + 3 * HOUR), "key-3")
+        await repository.add(a_booking(tutor.id, FIRST_SLOT - HOUR), "key-4")
+        await repository.add(a_booking(other_tutor.id, FIRST_SLOT + HOUR), "key-5")
+
+        # The window is half-open: a lesson starting exactly at its end is outside,
+        # and so is one that started earlier and merely runs into it.
+        window = TimeRange(FIRST_SLOT - 0.5 * HOUR, FIRST_SLOT + 3 * HOUR)
+
+        assert await repository.starting_between(tutor.id, window) == [early, late]
+
     async def test_of_many_simultaneous_attempts_at_one_slot_exactly_one_wins(
         self, repository: BookingRepository, tutor: Tutor
     ) -> None:

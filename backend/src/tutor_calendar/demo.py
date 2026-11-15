@@ -31,6 +31,7 @@ def demo_tutor() -> Tutor:
         id=DEMO_TUTOR_ID,
         slug="demo",
         display_name="Demo Tutor",
+        email="demo@example.com",
         schedule=Schedule(
             timezone=ZoneInfo("Europe/Warsaw"),
             lesson_duration=timedelta(minutes=60),

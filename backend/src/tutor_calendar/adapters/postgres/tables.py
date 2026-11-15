@@ -44,6 +44,7 @@ tutors = Table(
     Column("id", Uuid, primary_key=True),
     Column("slug", Text, nullable=False, unique=True),
     Column("display_name", Text, nullable=False),
+    Column("email", Text, nullable=False),
     Column("timezone", Text, nullable=False),
     Column("lesson_minutes", Integer, nullable=False),
     Column("min_notice_minutes", Integer, nullable=False),
@@ -51,6 +52,9 @@ tutors = Table(
     CheckConstraint("lesson_minutes > 0", name="tutors_lesson_minutes_positive"),
     CheckConstraint("min_notice_minutes >= 0", name="tutors_min_notice_not_negative"),
 )
+
+# Addresses are compared without regard to case, so they are unique that way too.
+Index("tutors_email_key", func.lower(tutors.c.email), unique=True)
 
 availability_rules = Table(
     "availability_rules",
@@ -93,4 +97,23 @@ bookings = Table(
     UniqueConstraint("tutor_id", "idempotency_key", name=BOOKINGS_IDEMPOTENCY_KEY),
     # The guarantee against double booking. See ADR 0003.
     ExcludeConstraint(("tutor_id", "="), ("during", "&&"), name=BOOKINGS_NO_OVERLAP, using="gist"),
+)
+
+# Both tables are keyed by the SHA-256 digest of a secret, never the secret. See ADR 0005.
+sign_in_tokens = Table(
+    "sign_in_tokens",
+    metadata,
+    Column("digest", Text, primary_key=True),
+    Column("tutor_id", Uuid, ForeignKey("tutors.id", ondelete="CASCADE"), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True), nullable=True),
+)
+
+sessions = Table(
+    "sessions",
+    metadata,
+    Column("digest", Text, primary_key=True),
+    Column("tutor_id", Uuid, ForeignKey("tutors.id", ondelete="CASCADE"), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
 )

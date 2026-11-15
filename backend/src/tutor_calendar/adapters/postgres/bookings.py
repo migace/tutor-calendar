@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Row, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -45,6 +45,16 @@ class PostgresBookingRepository:
         async with self._engine.connect() as connection:
             rows = await connection.execute(query)
             return [TimeRange(row.during.lower, row.during.upper) for row in rows]
+
+    async def starting_between(self, tutor_id: UUID, window: TimeRange) -> list[Booking]:
+        starts = func.lower(bookings.c.during)
+        query = (
+            select(bookings)
+            .where(bookings.c.tutor_id == tutor_id, starts >= window.start, starts < window.end)
+            .order_by(starts)
+        )
+        async with self._engine.connect() as connection:
+            return [_booking(row) for row in await connection.execute(query)]
 
     async def get_by_idempotency_key(self, tutor_id: UUID, key: str) -> Booking | None:
         query = select(bookings).where(

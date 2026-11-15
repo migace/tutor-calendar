@@ -26,6 +26,16 @@ class InMemoryBookingRepository:
             if booking.tutor_id == tutor_id and booking.slot.overlaps(window)
         )
 
+    async def starting_between(self, tutor_id: UUID, window: TimeRange) -> list[Booking]:
+        return sorted(
+            (
+                booking
+                for booking in self._bookings
+                if booking.tutor_id == tutor_id and window.start <= booking.slot.start < window.end
+            ),
+            key=lambda booking: booking.slot.start,
+        )
+
     async def get_by_idempotency_key(self, tutor_id: UUID, key: str) -> Booking | None:
         return self._by_key.get((tutor_id, key))
 

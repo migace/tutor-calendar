@@ -11,6 +11,7 @@
   --color-accent-contrast: #ffffff;
   --color-accent-soft: #e3efe9;
   --color-danger: #a3301f;
+  --color-warning: #8a5a00;
   --color-focus: #1b6fd1;
 
   --space-1: 0.25rem;
@@ -37,6 +38,7 @@
     --color-accent-contrast: #0d2219;
     --color-accent-soft: #20342c;
     --color-danger: #f0937f;
+    --color-warning: #f2c46b;
     --color-focus: #8bbcff;
   }
 }
@@ -185,8 +187,13 @@ body {
   border-radius: var(--radius-card);
 }
 
-.notice[role="alert"] {
+.notice--problem {
   border-color: var(--color-danger);
+}
+
+.notice--warning {
+  margin-bottom: var(--space-4);
+  border-color: var(--color-warning);
 }
 
 .notice__title {
@@ -209,10 +216,6 @@ body {
 .notice--success {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
-}
-
-.notice--warning {
-  margin-bottom: var(--space-4);
 }
 
 .step__heading {
@@ -326,6 +329,19 @@ body {
   margin-top: 0;
 }
 
+.button--secondary {
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+/* Links that navigate but should look like the buttons next to them. */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .skeleton {
   background: var(--color-border);
   border-radius: var(--radius-card);
@@ -357,4 +373,217 @@ body {
   .slot {
     transition: none;
   }
+}
+
+/* Tutor panel */
+
+.page--wide {
+  max-width: 72rem;
+  padding-bottom: var(--space-8);
+}
+
+.panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-header__name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.panel-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.panel-nav .button {
+  margin-top: 0;
+}
+
+.panel-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
+
+.panel-nav__link:hover {
+  border-bottom-color: var(--color-border);
+}
+
+.panel-nav__link[aria-current="page"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.week-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.week-bar__title {
+  margin: 0 0 var(--space-1);
+  font-size: clamp(1.375rem, 4vw, 1.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.week-bar__nav {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.week-bar__nav .button {
+  margin-top: 0;
+}
+
+/* A list of days on a phone, seven columns once there is room for them. */
+.week {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 64rem) {
+  .week {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.week__day {
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.week__day[aria-current="date"] {
+  border-color: var(--color-accent);
+  border-width: 2px;
+}
+
+.week__heading {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.week__date {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.week__today {
+  color: var(--color-accent);
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.week__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.week__lessons {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson {
+  display: grid;
+  padding: var(--space-2);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-control);
+}
+
+.lesson__time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lesson__email {
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  /* Long addresses wrap inside a narrow column and never widen it. */
+  overflow-wrap: anywhere;
+}
+
+.hours {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 40rem;
+}
+
+.hours__day {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.hours__weekday {
+  padding: 0 var(--space-2);
+  font-weight: 600;
+}
+
+.hours__day .button {
+  margin-top: 0;
+}
+
+.hours__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.hours__time {
+  width: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.hours__footer {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.hours__footer .button {
+  margin-top: 0;
+}
+
+.hours__status {
+  min-height: 1.5rem;
+  margin: 0;
+  color: var(--color-accent);
+  font-weight: 600;
 }
