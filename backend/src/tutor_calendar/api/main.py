@@ -8,11 +8,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from tutor_calendar.adapters.clock import SystemClock
+from tutor_calendar.adapters.mail import LoggingMailer
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
+from tutor_calendar.adapters.postgres.credentials import PostgresCredentialStore
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
+from tutor_calendar.api.routes import auth, health, panel, slots
 from tutor_calendar.api.routes import bookings as booking_routes
-from tutor_calendar.api.routes import health, slots
-from tutor_calendar.application.ports import BookingRepository, Clock, TutorRepository
+from tutor_calendar.application.ports import (
+    BookingRepository,
+    Clock,
+    CredentialStore,
+    Mailer,
+    TutorRepository,
+)
 from tutor_calendar.config import Settings
 
 
@@ -22,6 +30,8 @@ def create_app(
     clock: Clock | None = None,
     tutors: TutorRepository | None = None,
     bookings: BookingRepository | None = None,
+    credentials: CredentialStore | None = None,
+    mailer: Mailer | None = None,
 ) -> FastAPI:
     """Composition root: the only place where adapters are chosen and wired together.
 
@@ -39,21 +49,28 @@ def create_app(
         finally:
             await engine.dispose()
 
-    app = FastAPI(title="Tutor Calendar API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="Tutor Calendar API", version="0.3.0", lifespan=lifespan)
+    app.state.settings = settings
     app.state.engine = engine
     app.state.clock = clock or SystemClock()
     app.state.tutors = tutors or PostgresTutorRepository(engine)
     app.state.bookings = bookings or PostgresBookingRepository(engine)
+    app.state.credentials = credentials or PostgresCredentialStore(engine)
+    app.state.mailer = mailer or LoggingMailer()
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        # The session cookie has to travel when the web app is on another origin.
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     app.include_router(health.router)
     app.include_router(slots.router, prefix="/api/v1")
     app.include_router(booking_routes.router, prefix="/api/v1")
+    app.include_router(auth.router, prefix="/api/v1")
+    app.include_router(panel.router, prefix="/api/v1")
     return app
 
 

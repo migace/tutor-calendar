@@ -29,3 +29,19 @@ class IdempotencyKeyReusedError(Exception):
 
     def __init__(self) -> None:
         super().__init__("this Idempotency-Key was already used for a different request")
+
+
+class InvalidSignInLinkError(Exception):
+    """The sign-in token is unknown, expired or has been used already."""
+
+    def __init__(self) -> None:
+        super().__init__("this sign-in link is not valid any more")
+
+
+class NotSignedInError(Exception):
+    def __init__(self) -> None:
+        super().__init__("sign in to continue")
+
+
+class InvalidAvailabilityError(Exception):
+    """The weekly hours a tutor asked for contradict each other."""

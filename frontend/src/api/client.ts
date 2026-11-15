@@ -7,14 +7,22 @@ export type Tutor = components["schemas"]["TutorOut"];
 export type SlotsResponse = components["schemas"]["SlotsResponse"];
 export type BookingRequest = components["schemas"]["BookingIn"];
 export type Booking = components["schemas"]["BookingOut"];
+export type Profile = components["schemas"]["ProfileOut"];
+export type Week = components["schemas"]["WeekOut"];
+export type Lesson = components["schemas"]["LessonOut"];
+export type Availability = components["schemas"]["AvailabilityOut"];
+export type WeeklyRule = components["schemas"]["WeeklyRuleModel"];
 
 export class ApiError extends Error {
   readonly status: number;
+  /** The server's own explanation, when it gave one in plain words. */
+  readonly detail: string | null;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail: string | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -22,12 +30,23 @@ function tutorUrl(slug: string, resource: string): string {
   return `/api/v1/tutors/${encodeURIComponent(slug)}/${resource}`;
 }
 
+async function fail(response: Response): Promise<never> {
+  // Validation errors carry a list in `detail`; only a plain sentence is worth showing.
+  const body: unknown = await response.json().catch(() => null);
+  const detail = (body as { detail?: unknown } | null)?.detail;
+  throw new ApiError(
+    response.status,
+    `Request failed with status ${response.status}`,
+    typeof detail === "string" ? detail : null,
+  );
+}
+
 async function parse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    throw new ApiError(response.status, `Request failed with status ${response.status}`);
-  }
+  if (!response.ok) return fail(response);
   return (await response.json()) as T;
 }
+
+const JSON_BODY = { Accept: "application/json", "Content-Type": "application/json" };
 
 export async function fetchSlots(slug: string, signal?: AbortSignal): Promise<SlotsResponse> {
   const response = await fetch(tutorUrl(slug, "slots"), {
@@ -56,4 +75,63 @@ export async function createBooking(
     body: JSON.stringify(booking),
   });
   return parse<Booking>(response);
+}
+
+/** Asks for a sign-in link. Resolves the same way whether or not the address is known. */
+export async function requestSignInLink(email: string): Promise<void> {
+  const response = await fetch("/api/v1/auth/links", {
+    method: "POST",
+    headers: JSON_BODY,
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) await fail(response);
+}
+
+/** Trades the token from a sign-in link for a session cookie. */
+export async function signIn(token: string): Promise<Profile> {
+  const response = await fetch("/api/v1/auth/session", {
+    method: "POST",
+    headers: JSON_BODY,
+    body: JSON.stringify({ token }),
+  });
+  return parse<Profile>(response);
+}
+
+export async function signOut(): Promise<void> {
+  const response = await fetch("/api/v1/auth/session", { method: "DELETE" });
+  if (!response.ok) await fail(response);
+}
+
+/** The signed-in tutor, or null when nobody is signed in. */
+export async function fetchProfile(signal?: AbortSignal): Promise<Profile | null> {
+  const response = await fetch("/api/v1/me", { headers: { Accept: "application/json" }, signal });
+  if (response.status === 401) return null;
+  return parse<Profile>(response);
+}
+
+/** The tutor's week containing `date` (YYYY-MM-DD), or the current week. */
+export async function fetchWeek(date: string | null, signal?: AbortSignal): Promise<Week> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  const response = await fetch(`/api/v1/me/week${query}`, {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return parse<Week>(response);
+}
+
+export async function fetchAvailability(signal?: AbortSignal): Promise<Availability> {
+  const response = await fetch("/api/v1/me/availability", {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return parse<Availability>(response);
+}
+
+export async function saveAvailability(rules: WeeklyRule[]): Promise<Availability> {
+  const response = await fetch("/api/v1/me/availability", {
+    method: "PUT",
+    headers: JSON_BODY,
+    body: JSON.stringify({ rules }),
+  });
+  return parse<Availability>(response);
 }

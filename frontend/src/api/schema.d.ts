@@ -4,6 +4,99 @@
  */
 
 export interface paths {
+    "/api/v1/auth/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask for a sign-in link by e-mail
+         * @description Always answers 202, whether or not the address belongs to a tutor, so it cannot be used to find out who has an account.
+         */
+        post: operations["request_sign_in_link_api_v1_auth_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign in with the token from a sign-in link */
+        post: operations["sign_in_api_v1_auth_session_post"];
+        /** Sign out of this browser */
+        delete: operations["sign_out_api_v1_auth_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in tutor */
+        get: operations["me_api_v1_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The hours the tutor teaches each week */
+        get: operations["availability_api_v1_me_availability_get"];
+        /**
+         * Replace the hours the tutor teaches each week
+         * @description Lessons that are already booked are not affected.
+         */
+        put: operations["change_availability_api_v1_me_availability_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One week of the tutor's lessons, Monday to Sunday */
+        get: operations["week_api_v1_me_week_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tutors/{slug}/bookings": {
         parameters: {
             query?: never;
@@ -76,6 +169,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AvailabilityIn */
+        AvailabilityIn: {
+            /** Rules */
+            rules: components["schemas"]["WeeklyRuleModel"][];
+        };
+        /** AvailabilityOut */
+        AvailabilityOut: {
+            /** Lesson Minutes */
+            lesson_minutes: number;
+            /** Rules */
+            rules: components["schemas"]["WeeklyRuleModel"][];
+            /** Timezone */
+            timezone: string;
+        };
         /** BookingIn */
         BookingIn: {
             /**
@@ -110,6 +217,16 @@ export interface components {
              */
             start: string;
         };
+        /** DayOut */
+        DayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Lessons */
+            lessons: components["schemas"]["LessonOut"][];
+        };
         /** ErrorOut */
         ErrorOut: {
             /** Detail */
@@ -124,6 +241,54 @@ export interface components {
         HealthOut: {
             /** Status */
             status: string;
+        };
+        /** LessonOut */
+        LessonOut: {
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /** Student Email */
+            student_email: string;
+            /** Student Name */
+            student_name: string;
+        };
+        /** ProfileOut */
+        ProfileOut: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Lesson Minutes */
+            lesson_minutes: number;
+            /** Slug */
+            slug: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** SignInIn */
+        SignInIn: {
+            /** Token */
+            token: string;
+        };
+        /** SignInLinkIn */
+        SignInLinkIn: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /** SlotOut */
         SlotOut: {
@@ -173,6 +338,53 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** WeekOut */
+        WeekOut: {
+            /**
+             * Days
+             * @description Monday to Sunday
+             */
+            days: components["schemas"]["DayOut"][];
+            /**
+             * Next
+             * Format: date
+             * @description A date in the week after this one
+             */
+            next: string;
+            /**
+             * Previous
+             * Format: date
+             * @description A date in the week before this one
+             */
+            previous: string;
+            /** Timezone */
+            timezone: string;
+            /**
+             * Today
+             * Format: date
+             * @description Today on the tutor's calendar
+             */
+            today: string;
+        };
+        /** WeeklyRuleModel */
+        WeeklyRuleModel: {
+            /**
+             * End
+             * Format: time
+             */
+            end: string;
+            /**
+             * Start
+             * Format: time
+             * @description Wall-clock time in the tutor's zone, to the minute
+             */
+            start: string;
+            /**
+             * Weekday
+             * @description 0 is Monday
+             */
+            weekday: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -182,6 +394,265 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    request_sign_in_link_api_v1_auth_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_in_api_v1_auth_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description The link is expired, used or unknown */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_out_api_v1_auth_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_api_v1_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    availability_api_v1_me_availability_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_availability_api_v1_me_availability_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvailabilityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description The hours overlap or end before they start */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    week_api_v1_me_week_get: {
+        parameters: {
+            query?: {
+                /** @description Any day of the week to show; defaults to the current week */
+                date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeekOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     book_lesson_api_v1_tutors__slug__bookings_post: {
         parameters: {
             query?: never;

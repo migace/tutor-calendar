@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { ApiError, type Booking, type Slot } from "../../api/client";
+import { Button, TextField } from "../../ui";
 import { useBookLesson, type StudentDetails } from "./useBookLesson";
 
 interface BookingFormProps {
@@ -36,6 +37,10 @@ function check({ name, email }: StudentDetails): Problems {
   return problems;
 }
 
+function isRefusal(error: Error | null): boolean {
+  return error instanceof ApiError && error.status === 409;
+}
+
 function describeFailure(error: Error): string {
   if (error instanceof ApiError && error.status === 422) {
     return "The server did not accept these details. Check the name and email address.";
@@ -51,9 +56,10 @@ export function BookingForm({
   onSlotUnavailable,
   onChangeTime,
 }: BookingFormProps) {
-  const id = useId();
+  const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
-  const inputs = useRef<Partial<Record<Field, HTMLInputElement | null>>>({});
+  const nameInput = useRef<HTMLInputElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
   const [details, setDetails] = useState<StudentDetails>({ name: "", email: "" });
   const [problems, setProblems] = useState<Problems>({});
   const booking = useBookLesson(slug, slot);
@@ -70,88 +76,70 @@ export function BookingForm({
 
     const firstInvalid = (["name", "email"] as const).find((field) => found[field]);
     if (firstInvalid) {
-      inputs.current[firstInvalid]?.focus();
+      (firstInvalid === "name" ? nameInput : emailInput).current?.focus();
       return;
     }
 
     booking.mutate(tidied, {
       onSuccess: onBooked,
       onError: (error) => {
-        if (error instanceof ApiError && error.status === 409) onSlotUnavailable();
+        if (isRefusal(error)) onSlotUnavailable();
       },
     });
   }
 
-  function field(name: Field, label: string, hint: string, props: Record<string, string>) {
-    const problem = problems[name];
-    const hintId = `${id}-${name}-hint`;
-    const problemId = `${id}-${name}-problem`;
-    return (
-      <div className="field">
-        <label className="field__label" htmlFor={`${id}-${name}`}>
-          {label}
-        </label>
-        <p className="field__hint" id={hintId}>
-          {hint}
-        </p>
-        <input
-          {...props}
-          className="field__input"
-          id={`${id}-${name}`}
-          name={name}
-          ref={(element) => {
-            inputs.current[name] = element;
-          }}
-          value={details[name]}
-          required
-          aria-invalid={problem ? true : undefined}
-          aria-describedby={problem ? `${hintId} ${problemId}` : hintId}
-          onChange={(event) => setDetails({ ...details, [name]: event.target.value })}
-        />
-        {problem && (
-          <p className="field__problem" id={problemId}>
-            {problem}
-          </p>
-        )}
-      </div>
-    );
-  }
+  const bind = (field: Field) => ({
+    name: field,
+    value: details[field],
+    error: problems[field],
+    required: true,
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+      setDetails({ ...details, [field]: event.target.value }),
+  });
 
   return (
-    <section aria-labelledby={`${id}-heading`}>
-      <h2 className="step__heading" id={`${id}-heading`} ref={heading} tabIndex={-1}>
+    <section aria-labelledby={headingId}>
+      <h2 className="step__heading" id={headingId} ref={heading} tabIndex={-1}>
         Your details
       </h2>
 
       <div className="summary">
         <p className="summary__time">{slotLabel}</p>
-        <button type="button" className="link" onClick={onChangeTime} disabled={booking.isPending}>
+        <Button variant="link" onClick={onChangeTime} disabled={booking.isPending}>
           Change time
-        </button>
+        </Button>
       </div>
 
       {/* noValidate: the messages below replace the browser's own bubbles, which
           cannot be styled and are announced inconsistently by screen readers. */}
       <form className="form" noValidate onSubmit={handleSubmit}>
-        {field("name", "Student's name", "Who the lesson is for.", {
-          type: "text",
-          autoComplete: "name",
-        })}
-        {field("email", "Email address", "So the tutor can reach you about this lesson.", {
-          type: "email",
-          autoComplete: "email",
-          inputMode: "email",
-        })}
+        <TextField
+          {...bind("name")}
+          ref={nameInput}
+          label="Student's name"
+          hint="Who the lesson is for."
+          type="text"
+          autoComplete="name"
+        />
+        <TextField
+          {...bind("email")}
+          ref={emailInput}
+          label="Email address"
+          hint="So the tutor can reach you about this lesson."
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+        />
 
-        {booking.isError && !(booking.error instanceof ApiError && booking.error.status === 409) && (
+        {booking.isError && !isRefusal(booking.error) && (
           <p className="form__error" role="alert">
             {describeFailure(booking.error)}
           </p>
         )}
 
-        <button type="submit" className="button button--wide" disabled={booking.isPending}>
+        <Button type="submit" wide busy={booking.isPending}>
           {booking.isPending ? "Booking…" : "Book lesson"}
-        </button>
+        </Button>
       </form>
     </section>
   );

@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { ApiError, fetchSlots, type Booking, type Slot } from "../../api/client";
 import { UI_LOCALE } from "../../i18n";
+import { Button, Notice, PageSkeleton } from "../../ui";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { BookingForm } from "./BookingForm";
 import { describeSlot } from "./describeSlot";
@@ -38,13 +39,8 @@ export function BookingPage({
 
   if (isPending) {
     return (
-      <main className="page" aria-busy="true">
-        <p className="visually-hidden" role="status">
-          Loading available times…
-        </p>
-        <div className="skeleton skeleton--title" />
-        <div className="skeleton skeleton--row" />
-        <div className="skeleton skeleton--row" />
+      <main className="page">
+        <PageSkeleton label="Loading available times…" />
       </main>
     );
   }
@@ -53,21 +49,18 @@ export function BookingPage({
     const notFound = error instanceof ApiError && error.status === 404;
     return (
       <main className="page">
-        <div className="notice" role="alert">
-          <h1 className="notice__title">
-            {notFound ? "This booking page does not exist" : "We could not load the calendar"}
-          </h1>
-          <p>
-            {notFound
-              ? "Check the link you were given, or ask your tutor for a new one."
-              : "This is a problem on our side, not yours. Your tutor's times are unchanged."}
-          </p>
-          {!notFound && (
-            <button type="button" className="button" disabled={isFetching} onClick={() => refetch()}>
+        {notFound ? (
+          <Notice tone="problem" level={1} title="This booking page does not exist">
+            <p>Check the link you were given, or ask your tutor for a new one.</p>
+          </Notice>
+        ) : (
+          <Notice tone="problem" level={1} title="We could not load the calendar">
+            <p>This is a problem on our side, not yours. Your tutor&rsquo;s times are unchanged.</p>
+            <Button busy={isFetching} onClick={() => refetch()}>
               {isFetching ? "Trying again…" : "Try again"}
-            </button>
-          )}
-        </div>
+            </Button>
+          </Notice>
+        )}
       </main>
     );
   }
@@ -79,6 +72,8 @@ export function BookingPage({
 
   return (
     <main className="page">
+      {/* React moves this into <head>. Each page names itself in the browser tab. */}
+      <title>{`Book a lesson with ${tutor.display_name}`}</title>
       <header className="page__header">
         <p className="page__eyebrow">Book a lesson</p>
         <h1 className="page__title">{tutor.display_name}</h1>
@@ -149,27 +144,19 @@ function PickTime({
   onSelect,
   onContinue,
 }: PickTimeProps) {
-  const lostNotice = useRef<HTMLDivElement>(null);
-
-  // Arriving here because the chosen time was refused: put focus on the explanation.
-  useEffect(() => {
-    if (lostSlot) lostNotice.current?.focus();
-  }, [lostSlot]);
-
   return (
     <>
       {lostSlot && (
-        <div className="notice notice--warning" role="alert" ref={lostNotice} tabIndex={-1}>
-          <h2 className="notice__title">That time is no longer available</h2>
+        // Arriving here because the chosen time was refused: focus goes to the explanation.
+        <Notice tone="warning" title="That time is no longer available" focusOnMount>
           <p>Someone booked it just before you, or it is now too soon. Please pick another.</p>
-        </div>
+        </Notice>
       )}
 
       {slots.length === 0 ? (
-        <div className="notice">
-          <h2 className="notice__title">No free times in the next two weeks</h2>
+        <Notice title="No free times in the next two weeks">
           <p>New times open up every day. Check back tomorrow or contact your tutor directly.</p>
-        </div>
+        </Notice>
       ) : (
         <>
           <h2 className="visually-hidden">Available times</h2>
@@ -188,9 +175,7 @@ function PickTime({
           {selected ? <>Selected: {describe(selected)}</> : "Pick a time to continue."}
         </p>
         {selected && (
-          <button type="button" className="button" onClick={() => onContinue(selected)}>
-            Continue
-          </button>
+          <Button onClick={() => onContinue(selected)}>Continue</Button>
         )}
       </div>
     </>
