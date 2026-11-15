@@ -5,7 +5,7 @@ import { StrictMode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Availability, Profile, Week } from "./api/client";
+import type { Availability, Lesson, Profile, Week } from "./api/client";
 import { App } from "./App";
 import { json, mockApi } from "./test/mockApi";
 
@@ -31,12 +31,16 @@ function week(monday: number, lessons: Week["days"][number]["lessons"] = []): We
   };
 }
 
-const ANNA = {
+const ANNA: Lesson = {
   id: "0b5c1f4e-0000-4000-8000-000000000001",
   start: "2026-11-17T14:00:00Z",
   end: "2026-11-17T15:00:00Z",
   student_name: "Anna Nowak",
   student_email: "anna@example.com",
+  status: "confirmed",
+  cancelled_by: null,
+  cancelled_late: null,
+  series_id: null,
 };
 
 const HOURS: Availability = {

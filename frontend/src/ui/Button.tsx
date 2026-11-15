@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** `primary` for the one main action of a view, `secondary` for the rest, `link` for inline actions. */
@@ -7,6 +7,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   wide?: boolean;
   /** The action is in progress: the button is disabled and says so to assistive technology. */
   busy?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({

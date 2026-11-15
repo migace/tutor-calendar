@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,19 +10,33 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from tutor_calendar.adapters.clock import SystemClock
 from tutor_calendar.adapters.mail import LoggingMailer
+from tutor_calendar.adapters.manage_links import HmacManageLinks
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.credentials import PostgresCredentialStore
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
-from tutor_calendar.api.routes import auth, health, panel, slots
+from tutor_calendar.api.routes import auth, health, managed_booking, panel, series, slots
 from tutor_calendar.api.routes import bookings as booking_routes
 from tutor_calendar.application.ports import (
     BookingRepository,
     Clock,
     CredentialStore,
     Mailer,
+    ManageLinks,
     TutorRepository,
 )
 from tutor_calendar.config import Settings
+
+logger = logging.getLogger("tutor_calendar")
+
+
+def _manage_links(settings: Settings) -> ManageLinks:
+    if settings.secret_key is not None:
+        return HmacManageLinks(settings.secret_key)
+    logger.warning(
+        "TC_SECRET_KEY is not set: links for managing a booking will stop working "
+        "when this process restarts."
+    )
+    return HmacManageLinks.with_random_secret()
 
 
 def create_app(
@@ -32,6 +47,7 @@ def create_app(
     bookings: BookingRepository | None = None,
     credentials: CredentialStore | None = None,
     mailer: Mailer | None = None,
+    links: ManageLinks | None = None,
 ) -> FastAPI:
     """Composition root: the only place where adapters are chosen and wired together.
 
@@ -49,7 +65,7 @@ def create_app(
         finally:
             await engine.dispose()
 
-    app = FastAPI(title="Tutor Calendar API", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="Tutor Calendar API", version="0.4.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.engine = engine
     app.state.clock = clock or SystemClock()
@@ -57,6 +73,7 @@ def create_app(
     app.state.bookings = bookings or PostgresBookingRepository(engine)
     app.state.credentials = credentials or PostgresCredentialStore(engine)
     app.state.mailer = mailer or LoggingMailer()
+    app.state.links = links or _manage_links(settings)
 
     app.add_middleware(
         CORSMiddleware,
@@ -70,7 +87,9 @@ def create_app(
     app.include_router(slots.router, prefix="/api/v1")
     app.include_router(booking_routes.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
+    app.include_router(managed_booking.router, prefix="/api/v1")
     app.include_router(panel.router, prefix="/api/v1")
+    app.include_router(series.router, prefix="/api/v1")
     return app
 
 

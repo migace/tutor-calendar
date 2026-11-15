@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Annotated
+from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from tutor_calendar.api.deps import ChangeWeeklyHoursDep, ShowWeekDep, SignedInTutor
+from tutor_calendar.api.deps import (
+    ChangeOwnLessonDep,
+    ChangeWeeklyHoursDep,
+    ShowWeekDep,
+    SignedInTutor,
+)
 from tutor_calendar.api.schemas import (
     AvailabilityIn,
     AvailabilityOut,
@@ -18,8 +24,12 @@ from tutor_calendar.api.schemas import (
     WeeklyRuleModel,
     WeekOut,
 )
-from tutor_calendar.application.errors import InvalidAvailabilityError
-from tutor_calendar.domain.scheduling import Tutor, Weekday, WeeklyRule
+from tutor_calendar.application.errors import (
+    InvalidAvailabilityError,
+    LessonChangeRefusedError,
+    LessonNotFoundError,
+)
+from tutor_calendar.domain.scheduling import Booking, Tutor, Weekday, WeeklyRule
 
 router = APIRouter(
     prefix="/me",
@@ -35,6 +45,21 @@ def profile_of(tutor: Tutor) -> ProfileOut:
         email=tutor.email,
         timezone=tutor.schedule.timezone.key,
         lesson_minutes=tutor.schedule.lesson_duration // dt.timedelta(minutes=1),
+    )
+
+
+def lesson_out(lesson: Booking) -> LessonOut:
+    cancellation = lesson.cancellation
+    return LessonOut(
+        id=lesson.id,
+        start=lesson.slot.start,
+        end=lesson.slot.end,
+        student_name=lesson.student.name,
+        student_email=lesson.student.email,
+        status=lesson.status.value,
+        cancelled_by=cancellation.by.value if cancellation else None,
+        cancelled_late=cancellation.late if cancellation else None,
+        series_id=lesson.series_id,
     )
 
 
@@ -73,16 +98,7 @@ async def week(
         days=[
             DayOut(
                 date=day.day,
-                lessons=[
-                    LessonOut(
-                        id=lesson.id,
-                        start=lesson.slot.start,
-                        end=lesson.slot.end,
-                        student_name=lesson.student.name,
-                        student_email=lesson.student.email,
-                    )
-                    for lesson in day.lessons
-                ],
+                lessons=[lesson_out(lesson) for lesson in day.lessons],
             )
             for day in view.week.days
         ],
@@ -109,3 +125,43 @@ async def change_availability(
     except (InvalidAvailabilityError, ValueError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
     return _availability_of(changed)
+
+
+_LESSON_ERRORS: dict[int | str, dict[str, Any]] = {
+    404: {"model": ErrorOut, "description": "No such lesson of this tutor"},
+    409: {"model": ErrorOut, "description": "The lesson is not in a state that allows this"},
+}
+
+
+@router.post(
+    "/lessons/{lesson_id}/cancellation",
+    summary="Cancel one of the tutor's lessons",
+    description="A lesson the tutor cancels is never charged to the student.",
+    responses=_LESSON_ERRORS,
+)
+async def cancel_lesson(
+    lesson_id: UUID, tutor: SignedInTutor, use_case: ChangeOwnLessonDep
+) -> LessonOut:
+    try:
+        return lesson_out(await use_case.cancel(tutor, lesson_id))
+    except LessonNotFoundError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except LessonChangeRefusedError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.post(
+    "/lessons/{lesson_id}/no-show",
+    summary="Record that the student did not turn up",
+    description="Possible once the lesson has started. A no-show is charged.",
+    responses=_LESSON_ERRORS,
+)
+async def mark_no_show(
+    lesson_id: UUID, tutor: SignedInTutor, use_case: ChangeOwnLessonDep
+) -> LessonOut:
+    try:
+        return lesson_out(await use_case.mark_no_show(tutor, lesson_id))
+    except LessonNotFoundError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except LessonChangeRefusedError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error

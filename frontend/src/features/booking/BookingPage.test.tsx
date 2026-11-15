@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Slot, SlotsResponse } from "../../api/client";
@@ -28,7 +29,12 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-const booked = () => json(201, { id: "0b5c1f4e-0000-4000-8000-000000000001", ...TUESDAY_3PM });
+const booked = () =>
+  json(201, {
+    id: "0b5c1f4e-0000-4000-8000-000000000001",
+    manage_token: "0b5c1f4e000040008000000000000001.signature",
+    ...TUESDAY_3PM,
+  });
 const networkDown = () => Promise.reject(new TypeError("Failed to fetch"));
 
 type Reply = () => Response | Promise<Response>;
@@ -65,7 +71,9 @@ function renderPage() {
   });
   render(
     <QueryClientProvider client={queryClient}>
-      <BookingPage slug="demo" timeZone="Europe/Warsaw" />
+      <MemoryRouter>
+        <BookingPage slug="demo" timeZone="Europe/Warsaw" />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return userEvent.setup();

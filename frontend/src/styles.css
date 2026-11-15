@@ -587,3 +587,71 @@ a.button {
   color: var(--color-accent);
   font-weight: 600;
 }
+
+/* Lesson states and actions */
+
+.lesson {
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.lesson--off {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.lesson--off .lesson__time,
+.lesson--off .lesson__student {
+  text-decoration: line-through;
+}
+
+.lesson__tag,
+.lesson__status {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.lesson__tag {
+  color: var(--color-accent);
+}
+
+.lesson .button,
+.confirm .button,
+.day .button {
+  min-height: 2.75rem;
+  margin-top: var(--space-1);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.confirm__question {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.regulars {
+  display: grid;
+  gap: var(--space-8);
+  max-width: 40rem;
+}
+
+.regulars__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.regulars__form .button {
+  margin-top: 0;
+  justify-self: start;
+}

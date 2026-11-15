@@ -15,3 +15,6 @@ class Settings(BaseSettings):
     # Session cookies are marked Secure. Browsers still accept them on
     # http://localhost, so this only needs turning off for plain-HTTP hosts.
     cookie_secure: bool = True
+    # Signs the links students use to manage a booking. Without it a random
+    # one is made up at start, and links stop working when the process restarts.
+    secret_key: str | None = None

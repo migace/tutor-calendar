@@ -9,10 +9,11 @@ looks different: the same students at the same times, paid for in blocks, with
 "can we move Thursday?" as the most common request. This project is built
 around that workflow.
 
-> **Status: week 3 of 6.** A visitor can see a tutor's free slots in their own
-> time zone and book one. A tutor can sign in, see their week and change their
-> hours. There are no recurring lessons yet, and e-mail is written to the log
-> instead of being sent. See the [roadmap](#roadmap).
+> **Status: week 4 of 6.** A visitor can book a lesson and cancel it with a
+> link. A tutor can sign in, see their week, change their hours, cancel lessons
+> and set up weekly lessons for regular students. Packages of hours are next,
+> and e-mail is still written to the log instead of being sent. See the
+> [roadmap](#roadmap).
 
 ## What is interesting here
 
@@ -30,6 +31,15 @@ an idempotency key, so a retry after a timeout returns the booking the first
 attempt made. The page relies on that to retry failed requests on its own.
 [ADR 0004](docs/adr/0004-idempotent-booking-requests.md) covers the design and
 its one known gap.
+
+**Weekly lessons are just lessons.** "Tuesdays at 17:00 for ten weeks" is laid
+out into ordinary bookings when it is created, so the constraint that prevents
+double booking, the slot list and cancellation all cover a series without a
+second code path. A cancelled lesson gives its time back, whether it is charged
+depends on the tutor's policy, and a student and a tutor cancelling the same
+lesson at once cannot both win.
+[ADR 0006](docs/adr/0006-lesson-states-cancellation-and-series.md) weighs this
+against expanding series on read.
 
 **Sign-in without passwords, and without the usual holes.** Tutors sign in with
 a single-use link. Tokens are stored only as digests, the link's token never
@@ -100,6 +110,10 @@ To see the tutor panel, go to <http://localhost:5173/panel> and ask for a
 sign-in link for `demo@example.com`. E-mail is not sent yet: the message, with
 its link, appears in the output of the API.
 
+Links for managing a booking are signed with `TC_SECRET_KEY`. Without it the
+API makes up a key at start and says so, and those links stop working when it
+restarts. See `backend/.env.example`.
+
 The second command migrates the database and stores a demo tutor, whose
 booking page is the one the frontend opens.
 
@@ -158,8 +172,8 @@ docs/adr/        architecture decision records
    concurrency test, idempotent requests, the public booking flow - done.
 3. **Tutor panel**: sign-in by e-mail link, week view, editing availability, the
    start of a component library - done.
-4. Recurring lessons with exceptions, the lesson state machine, cancellation
-   policy.
+4. **Recurring lessons** with exceptions, the lesson state machine, cancellation
+   policy - done.
 5. Packages of hours as an append-only ledger, the parent's statement,
    reminders through a transactional outbox.
 6. Accessibility audit, demo data, load-test numbers, a hosted demo.

@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 
-from tests.factories import ANNA, FIRST_SLOT, NOW
+from tests.factories import ANNA, FIRST_SLOT, LINKS, NOW
 from tutor_calendar.adapters.clock import FixedClock
 from tutor_calendar.adapters.in_memory_bookings import InMemoryBookingRepository
 from tutor_calendar.adapters.in_memory_tutors import InMemoryTutorRepository
@@ -33,7 +33,8 @@ class Scenario:
         return FixedClock(self.now)
 
     async def book(self, start: datetime, key: str) -> None:
-        await BookLesson(self.tutors, self.bookings, self.clock).execute("demo", start, ANNA, key)
+        book = BookLesson(self.tutors, self.bookings, LINKS, self.clock)
+        await book.execute("demo", start, ANNA, key)
 
     async def free_slots(self) -> list[datetime]:
         use_case = ListAvailableSlots(self.tutors, self.bookings, self.clock)

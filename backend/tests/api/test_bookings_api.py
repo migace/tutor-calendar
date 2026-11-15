@@ -33,7 +33,7 @@ def test_booking_a_free_slot(client: TestClient) -> None:
     assert body["end"] == "2026-11-17T15:00:00Z"
     assert "Idempotency-Replayed" not in response.headers
     # What the visitor typed stays out of the response; it has no use for it.
-    assert set(body) == {"id", "start", "end"}
+    assert set(body) == {"id", "start", "end", "manage_token"}
 
 
 def test_a_booked_slot_disappears_from_the_listing(client: TestClient) -> None:

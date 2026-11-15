@@ -42,6 +42,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/booking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The booking a manage token belongs to */
+        get: operations["view_booking_api_v1_booking_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel the booking
+         * @description Free until the tutor's deadline. After it the lesson is cancelled all the same but still charged, and the response says so in `cancelled_late`.
+         */
+        delete: operations["cancel_booking_api_v1_booking_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -75,6 +96,87 @@ export interface paths {
         put: operations["change_availability_api_v1_me_availability_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/lessons/{lesson_id}/cancellation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel one of the tutor's lessons
+         * @description A lesson the tutor cancels is never charged to the student.
+         */
+        post: operations["cancel_lesson_api_v1_me_lessons__lesson_id__cancellation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/lessons/{lesson_id}/no-show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the student did not turn up
+         * @description Possible once the lesson has started. A no-show is charged.
+         */
+        post: operations["mark_no_show_api_v1_me_lessons__lesson_id__no_show_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tutor's weekly series, oldest first */
+        get: operations["list_series_api_v1_me_series_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/series/{series_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Book a lesson every week for a number of weeks
+         * @description The client chooses the id. Sending the same request again returns the series as it was first created, so the request is safe to repeat.
+         */
+        put: operations["start_series_api_v1_me_series__series_id__put"];
+        post?: never;
+        /**
+         * End a series: cancel its lessons that have not started
+         * @description Past lessons are kept. The cancelled ones are not charged.
+         */
+        delete: operations["end_series_api_v1_me_series__series_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -212,6 +314,11 @@ export interface components {
              */
             id: string;
             /**
+             * Manage Token
+             * @description Lets whoever holds it view and cancel this booking. Keep it private.
+             */
+            manage_token: string;
+            /**
              * Start
              * Format: date-time
              */
@@ -244,6 +351,10 @@ export interface components {
         };
         /** LessonOut */
         LessonOut: {
+            /** Cancelled By */
+            cancelled_by: string | null;
+            /** Cancelled Late */
+            cancelled_late: boolean | null;
             /**
              * End
              * Format: date-time
@@ -255,14 +366,61 @@ export interface components {
              */
             id: string;
             /**
+             * Series Id
+             * @description Set when the lesson belongs to a weekly series
+             */
+            series_id: string | null;
+            /**
              * Start
              * Format: date-time
              */
             start: string;
+            /**
+             * Status
+             * @description confirmed, cancelled or no_show
+             */
+            status: string;
             /** Student Email */
             student_email: string;
             /** Student Name */
             student_name: string;
+        };
+        /** ManagedBookingOut */
+        ManagedBookingOut: {
+            /** Can Cancel */
+            can_cancel: boolean;
+            /** Cancelled By */
+            cancelled_by: string | null;
+            /** Cancelled Late */
+            cancelled_late: boolean | null;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /**
+             * Free Cancellation Until
+             * @description Null when cancelling is free right up to the lesson
+             */
+            free_cancellation_until: string | null;
+            /** Late If Cancelled Now */
+            late_if_cancelled_now: boolean;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /** Status */
+            status: string;
+            /** Student Name */
+            student_name: string;
+            /**
+             * Timezone
+             * @description IANA zone of the tutor
+             */
+            timezone: string;
+            /** Tutor Name */
+            tutor_name: string;
         };
         /** ProfileOut */
         ProfileOut: {
@@ -276,6 +434,77 @@ export interface components {
             slug: string;
             /** Timezone */
             timezone: string;
+        };
+        /** SeriesConflictOut */
+        SeriesConflictOut: {
+            /**
+             * Conflicts
+             * @description Days on which a lesson is already booked
+             */
+            conflicts: string[];
+            /** Detail */
+            detail: string;
+        };
+        /** SeriesIn */
+        SeriesIn: {
+            /**
+             * First Day
+             * Format: date
+             * @description Day of the first lesson, on the tutor's calendar
+             */
+            first_day: string;
+            /**
+             * Skip Conflicts
+             * @description Leave out lessons that overlap something already booked, instead of failing
+             * @default false
+             */
+            skip_conflicts: boolean;
+            /**
+             * Start
+             * Format: time
+             * @description Wall-clock time in the tutor's zone, to the minute
+             */
+            start: string;
+            /**
+             * Student Email
+             * Format: email
+             */
+            student_email: string;
+            /** Student Name */
+            student_name: string;
+            /** Weeks */
+            weeks: number;
+        };
+        /** SeriesOut */
+        SeriesOut: {
+            /**
+             * Days Without Lesson
+             * @description Days of the plan with no lesson: days off, skipped by a clock change, or left out because of a conflict
+             */
+            days_without_lesson: string[];
+            /**
+             * First Day
+             * Format: date
+             */
+            first_day: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lessons */
+            lessons: components["schemas"]["LessonOut"][];
+            /**
+             * Start
+             * Format: time
+             */
+            start: string;
+            /** Student Email */
+            student_email: string;
+            /** Student Name */
+            student_name: string;
+            /** Weeks */
+            weeks: number;
         };
         /** SignInIn */
         SignInIn: {
@@ -496,6 +725,73 @@ export interface operations {
             };
         };
     };
+    view_booking_api_v1_booking_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedBookingOut"];
+                };
+            };
+            /** @description The manage token is missing or not valid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    cancel_booking_api_v1_booking_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedBookingOut"];
+                };
+            };
+            /** @description The manage token is missing or not valid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Already cancelled, or already started */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     me_api_v1_me_get: {
         parameters: {
             query?: never;
@@ -609,6 +905,260 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    cancel_lesson_api_v1_me_lessons__lesson_id__cancellation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description No such lesson of this tutor */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description The lesson is not in a state that allows this */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_no_show_api_v1_me_lessons__lesson_id__no_show_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description No such lesson of this tutor */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description The lesson is not in a state that allows this */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_series_api_v1_me_series_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesOut"][];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_series_api_v1_me_series__series_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                series_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeriesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Some lessons overlap ones already booked. Nothing was stored. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesConflictOut"];
+                };
+            };
+            /** @description The plan is not possible, or the id belongs to another series */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    end_series_api_v1_me_series__series_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                series_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description No such series of this tutor */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

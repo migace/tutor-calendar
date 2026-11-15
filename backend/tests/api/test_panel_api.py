@@ -51,6 +51,10 @@ def test_the_week_lists_lessons_with_who_booked_them(tutor: TestClient) -> None:
         "end": "2026-11-17T15:00:00Z",
         "student_name": "Anna Nowak",
         "student_email": "anna@example.com",
+        "status": "confirmed",
+        "cancelled_by": None,
+        "cancelled_late": None,
+        "series_id": None,
     }
     assert sum(len(day["lessons"]) for day in week["days"]) == 1
 
