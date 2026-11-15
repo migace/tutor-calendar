@@ -1,5 +1,5 @@
 # `docker compose up -d db`    PostgreSQL only, for running the backend from your shell
-# `docker compose up --build`  PostgreSQL and the API (migrations run on start)
+# `docker compose up --build`  PostgreSQL and the API (migrates and adds a demo tutor on start)
 services:
   db:
     image: postgres:17-alpine
@@ -26,6 +26,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Without this, `docker compose up --wait` returns while migrations are still running.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"
+      interval: 2s
+      timeout: 3s
+      retries: 15
 
 volumes:
   db-data:

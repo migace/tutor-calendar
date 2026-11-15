@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/tutors/{slug}/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Book one lesson with a tutor */
+        post: operations["book_lesson_api_v1_tutors__slug__bookings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tutors/{slug}/slots": {
         parameters: {
             query?: never;
@@ -59,6 +76,45 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BookingIn */
+        BookingIn: {
+            /**
+             * Start
+             * Format: date-time
+             * @description Start of the slot to book, exactly as returned by the slots endpoint
+             */
+            start: string;
+            /**
+             * Student Email
+             * Format: email
+             */
+            student_email: string;
+            /** Student Name */
+            student_name: string;
+        };
+        /** BookingOut */
+        BookingOut: {
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+        };
+        /** ErrorOut */
+        ErrorOut: {
+            /** Detail */
+            detail: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -126,6 +182,64 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    book_lesson_api_v1_tutors__slug__bookings_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A random value the client makes up for this booking attempt, for example a UUID. Sending the same request again with the same key never books twice; it returns the booking the first attempt created. */
+                "idempotency-key": string;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    /** @description 'true' when this repeated an earlier request */
+                    "Idempotency-Replayed"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOut"];
+                };
+            };
+            /** @description No such tutor */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description The time cannot be booked: someone else has it, it is too soon, or the tutor does not offer it. Fetch the slots again and pick another. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_slots_api_v1_tutors__slug__slots_get: {
         parameters: {
             query?: {

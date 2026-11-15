@@ -8,9 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from tutor_calendar.adapters.clock import SystemClock
-from tutor_calendar.adapters.in_memory_tutors import InMemoryTutorRepository, demo_tutor
+from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
+from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
+from tutor_calendar.api.routes import bookings as booking_routes
 from tutor_calendar.api.routes import health, slots
-from tutor_calendar.application.ports import Clock, TutorRepository
+from tutor_calendar.application.ports import BookingRepository, Clock, TutorRepository
 from tutor_calendar.config import Settings
 
 
@@ -19,23 +21,29 @@ def create_app(
     *,
     clock: Clock | None = None,
     tutors: TutorRepository | None = None,
+    bookings: BookingRepository | None = None,
 ) -> FastAPI:
-    """Composition root: the only place where adapters are chosen and wired together."""
+    """Composition root: the only place where adapters are chosen and wired together.
+
+    Everything is backed by PostgreSQL unless a caller passes something else,
+    which is how the fast tests swap in fakes.
+    """
     settings = settings or Settings()
+    # Creating the engine opens no connection; that happens on first use.
+    engine = create_async_engine(settings.database_url, pool_pre_ping=True)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # Creating the engine opens no connection; that happens on first use.
-        engine = create_async_engine(settings.database_url, pool_pre_ping=True)
-        app.state.engine = engine
         try:
             yield
         finally:
             await engine.dispose()
 
-    app = FastAPI(title="Tutor Calendar API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Tutor Calendar API", version="0.2.0", lifespan=lifespan)
+    app.state.engine = engine
     app.state.clock = clock or SystemClock()
-    app.state.tutors = tutors or InMemoryTutorRepository([demo_tutor()])
+    app.state.tutors = tutors or PostgresTutorRepository(engine)
+    app.state.bookings = bookings or PostgresBookingRepository(engine)
 
     app.add_middleware(
         CORSMiddleware,
@@ -45,6 +53,7 @@ def create_app(
     )
     app.include_router(health.router)
     app.include_router(slots.router, prefix="/api/v1")
+    app.include_router(booking_routes.router, prefix="/api/v1")
     return app
 
 

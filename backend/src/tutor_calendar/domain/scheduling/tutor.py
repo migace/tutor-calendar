@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+from uuid import UUID
 
 from tutor_calendar.domain.scheduling.availability import Schedule
 
 
 @dataclass(frozen=True, slots=True)
 class Tutor:
+    id: UUID
     slug: str
     display_name: str
     schedule: Schedule

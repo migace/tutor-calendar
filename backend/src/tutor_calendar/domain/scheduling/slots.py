@@ -56,6 +56,17 @@ def generate_slots(
     return slots
 
 
+def slot_starting_at(schedule: Schedule, start: datetime) -> TimeRange | None:
+    """The slot on the schedule's grid that starts at ``start``, if there is one.
+
+    This is how a requested booking is checked against the schedule: a client
+    names a start instant, and only an instant the grid really contains is
+    accepted. Whether that slot is still free is a separate question.
+    """
+    candidate = TimeRange(start, start + schedule.lesson_duration)
+    return candidate if generate_slots(schedule, candidate) == [candidate] else None
+
+
 def _grid_for_day(schedule: Schedule, day: date) -> Iterator[TimeRange]:
     tz = schedule.timezone
     duration = schedule.lesson_duration

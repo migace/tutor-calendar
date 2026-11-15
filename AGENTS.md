@@ -52,3 +52,8 @@ cd frontend && pnpm gen:api
 `domain`, and `adapters` and `api` sit on the outside. A test enforces this.
 Record a decision that changes the architecture or the time model as a new ADR
 in `docs/adr/`.
+
+A change to a port goes with a change to its contract tests in
+`backend/tests/contract/`, which run against every implementation. A change to
+the schema is a new migration plus the matching edit in
+`adapters/postgres/tables.py`; a test compares the two.
