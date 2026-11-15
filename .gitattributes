@@ -1,0 +1,3 @@
+# LF everywhere, so generated files (openapi.json, schema.d.ts) are byte-identical
+# on Windows and in CI and the "is it up to date?" check does not flap.
+* text=auto eol=lf

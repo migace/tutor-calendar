@@ -1,0 +1,31 @@
+# `docker compose up -d db`    PostgreSQL only, for running the backend from your shell
+# `docker compose up --build`  PostgreSQL and the API (migrations run on start)
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tutor
+      POSTGRES_PASSWORD: tutor
+      POSTGRES_DB: tutor_calendar
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutor -d tutor_calendar"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: ./backend
+    environment:
+      TC_DATABASE_URL: postgresql+asyncpg://tutor:tutor@db:5432/tutor_calendar
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
