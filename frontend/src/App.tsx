@@ -2,6 +2,9 @@ import { Link, Navigate, Route, Routes, useParams } from "react-router";
 
 import { SignInPage } from "./features/auth/SignInPage";
 import { VerifyPage } from "./features/auth/VerifyPage";
+import { SharedStatementPage } from "./features/billing/SharedStatementPage";
+import { StudentPage } from "./features/billing/StudentPage";
+import { StudentsPage } from "./features/billing/StudentsPage";
 import { BookingPage } from "./features/booking/BookingPage";
 import { ManageBookingPage } from "./features/booking/ManageBookingPage";
 import { AvailabilityPage } from "./features/panel/AvailabilityPage";
@@ -37,11 +40,14 @@ export function App() {
       <Route path="/" element={<Navigate to="/book/demo" replace />} />
       <Route path="/book/:slug" element={<PublicBookingPage />} />
       <Route path="/booking" element={<ManageBookingPage />} />
+      <Route path="/statement" element={<SharedStatementPage />} />
       <Route path="/sign-in" element={<SignInPage />} />
       <Route path="/sign-in/verify" element={<VerifyPage />} />
       <Route path="/panel" element={<PanelLayout />}>
         <Route index element={<WeekPage />} />
         <Route path="regulars" element={<SeriesPage />} />
+        <Route path="students" element={<StudentsPage />} />
+        <Route path="students/:email" element={<StudentPage />} />
         <Route path="availability" element={<AvailabilityPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />

@@ -30,6 +30,9 @@ uv run mypy
 uv run pytest
 ```
 
+Tests that need PostgreSQL are skipped when it is not running, which hides
+most of what matters. Start it first with `docker compose up -d db`.
+
 Frontend, from `frontend/`:
 
 ```bash

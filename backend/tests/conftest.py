@@ -74,7 +74,9 @@ async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
     """An engine on the test database, with every table emptied first."""
     engine = create_async_engine(database_url)
     async with engine.begin() as connection:
-        await connection.execute(text("TRUNCATE tutors, bookings, lesson_series CASCADE"))
+        await connection.execute(
+            text("TRUNCATE tutors, bookings, lesson_series, ledger_entries, outbox CASCADE")
+        )
     try:
         yield engine
     finally:

@@ -1,6 +1,6 @@
 [project]
 name = "tutor-calendar"
-version = "0.4.0"
+version = "0.5.0"
 description = "Booking calendar for independent tutors"
 requires-python = ">=3.12"
 dependencies = [
@@ -17,6 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aiosmtpd>=1.4",
     "httpx2>=2.16.0",
     "hypothesis>=6.100",
     "mypy>=1.11",

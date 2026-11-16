@@ -18,3 +18,13 @@ class Settings(BaseSettings):
     # Signs the links students use to manage a booking. Without it a random
     # one is made up at start, and links stop working when the process restarts.
     secret_key: str | None = None
+
+    # Outgoing mail. Without a host, the worker writes messages to its log.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_starttls: bool = True
+    mail_from: str = "Tutor Calendar <no-reply@localhost>"
+    # How often the worker looks for lessons to charge and mail to send.
+    worker_interval_seconds: float = 30.0

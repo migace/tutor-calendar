@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -10,13 +11,16 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
+from tutor_calendar.adapters.postgres.billing import outbox_row
 from tutor_calendar.adapters.postgres.tables import (
     BOOKINGS_IDEMPOTENCY_KEY,
     bookings,
     lesson_series,
+    outbox,
     tutors,
 )
 from tutor_calendar.application.errors import SeriesConflictError, SlotTakenError
+from tutor_calendar.application.ports import Email
 from tutor_calendar.domain.scheduling import (
     Actor,
     Booking,
@@ -87,7 +91,9 @@ class PostgresBookingRepository:
             row = (await connection.execute(select(bookings).where(*conditions))).one_or_none()
             return None if row is None else _booking(row)
 
-    async def add(self, booking: Booking, idempotency_key: str) -> Booking:
+    async def add(
+        self, booking: Booking, idempotency_key: str, confirmation: Email | None = None
+    ) -> Booking:
         # A repeated key is not an error but "do nothing"; an overlap is an
         # error raised by the exclusion constraint.
         insert_booking = (
@@ -100,6 +106,12 @@ class PostgresBookingRepository:
             async with self._engine.begin() as connection:
                 await _queue_behind_other_writers(connection, booking.tutor_id)
                 inserted = (await connection.execute(insert_booking)).one_or_none()
+                if inserted is not None and confirmation is not None:
+                    # Same transaction as the booking: the message is queued if
+                    # and only if the booking is stored. See ADR 0007.
+                    await connection.execute(
+                        insert(outbox).values(outbox_row(confirmation, booking.created_at))
+                    )
         except IntegrityError as error:
             if getattr(error.orig, "sqlstate", None) == _EXCLUSION_VIOLATION:
                 raise SlotTakenError from error
@@ -131,6 +143,89 @@ class PostgresBookingRepository:
                 )
                 applied += result.rowcount
         return applied
+
+    async def students(self, tutor_id: UUID) -> dict[str, str]:
+        account = func.lower(bookings.c.student_email)
+        # The name on each student's most recent booking: number each student's
+        # bookings from the newest and keep the first.
+        newest_first = func.row_number().over(
+            partition_by=account, order_by=(bookings.c.created_at.desc(), bookings.c.id)
+        )
+        ranked = (
+            select(
+                account.label("account"),
+                bookings.c.student_name,
+                newest_first.label("position"),
+            )
+            .where(bookings.c.tutor_id == tutor_id)
+            .subquery()
+        )
+        query = select(ranked.c.account, ranked.c.student_name).where(ranked.c.position == 1)
+        async with self._engine.connect() as connection:
+            return {row[0]: row[1] for row in await connection.execute(query)}
+
+    async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
+        # The same rule as ``is_settled`` in the domain, said in SQL.
+        final = (bookings.c.status != LessonStatus.CONFIRMED.value) | (
+            func.upper(bookings.c.during) <= now
+        )
+        query = (
+            select(bookings)
+            .where(bookings.c.settled_at.is_(None), final)
+            .order_by(func.lower(bookings.c.during))
+            .limit(limit)
+        )
+        async with self._engine.connect() as connection:
+            return [_booking(row) for row in await connection.execute(query)]
+
+    async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None:
+        if not booking_ids:
+            return
+        async with self._engine.begin() as connection:
+            await connection.execute(
+                update(bookings)
+                .where(bookings.c.id.in_(booking_ids), bookings.c.settled_at.is_(None))
+                .values(settled_at=now)
+            )
+
+    async def due_for_reminder(self, now: datetime, lead: timedelta, limit: int) -> list[Booking]:
+        starts = func.lower(bookings.c.during)
+        query = (
+            select(bookings)
+            .where(
+                bookings.c.reminded_at.is_(None),
+                bookings.c.status == LessonStatus.CONFIRMED.value,
+                starts > now,
+                starts <= now + lead,
+                bookings.c.created_at <= starts - lead,
+            )
+            .order_by(starts)
+            .limit(limit)
+        )
+        async with self._engine.connect() as connection:
+            return [_booking(row) for row in await connection.execute(query)]
+
+    async def record_reminders(
+        self, reminders: Sequence[tuple[Booking, Email]], now: datetime
+    ) -> int:
+        queued = 0
+        async with self._engine.begin() as connection:
+            for booking, email in reminders:
+                # Compare-and-set again: only the worker whose UPDATE matches
+                # queues the message, so a lesson gets one reminder.
+                marked = await connection.execute(
+                    update(bookings)
+                    .where(
+                        bookings.c.id == booking.id,
+                        bookings.c.reminded_at.is_(None),
+                        bookings.c.status == LessonStatus.CONFIRMED.value,
+                    )
+                    .values(reminded_at=now)
+                )
+                if marked.rowcount == 1:
+                    await connection.execute(insert(outbox).values(outbox_row(email, now)))
+                    queued += 1
+        return queued
 
     async def series(self, tutor_id: UUID) -> list[LessonSeries]:
         query = (

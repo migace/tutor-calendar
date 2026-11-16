@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import uuid4
 
+from tutor_calendar.application.emails import booking_confirmation
 from tutor_calendar.application.errors import (
     IdempotencyKeyReusedError,
     SlotNotOfferedError,
@@ -41,11 +42,13 @@ class BookLesson:
         bookings: BookingRepository,
         links: ManageLinks,
         clock: Clock,
+        public_url: str = "http://localhost:5173",
     ) -> None:
         self._tutors = tutors
         self._bookings = bookings
         self._links = links
         self._clock = clock
+        self._public_url = public_url
 
     async def execute(
         self,
@@ -72,7 +75,12 @@ class BookLesson:
             raise SlotNotOfferedError("the tutor does not offer a lesson at this time")
 
         booking = Booking(id=uuid4(), tutor_id=tutor.id, slot=slot, student=student, created_at=now)
-        stored = await self._bookings.add(booking, idempotency_key)
+        # Handed over with the booking so that the two are stored together:
+        # no booking without its confirmation, no confirmation without a booking.
+        confirmation = booking_confirmation(
+            tutor, booking, self._links.token_for(booking.id), self._public_url
+        )
+        stored = await self._bookings.add(booking, idempotency_key, confirmation)
         if stored.id != booking.id:
             # The same key arrived twice at once and the other request won.
             return self._replay(stored, start, student)

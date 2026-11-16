@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,19 +10,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from tutor_calendar.adapters.clock import SystemClock
-from tutor_calendar.adapters.mail import LoggingMailer
-from tutor_calendar.adapters.manage_links import HmacManageLinks
+from tutor_calendar.adapters.mail import OutboxMailer
+from tutor_calendar.adapters.manage_links import HmacManageLinks, HmacStatementLinks
+from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOutbox
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.credentials import PostgresCredentialStore
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
-from tutor_calendar.api.routes import auth, health, managed_booking, panel, series, slots
+from tutor_calendar.api.routes import (
+    auth,
+    billing,
+    health,
+    managed_booking,
+    panel,
+    series,
+    slots,
+)
 from tutor_calendar.api.routes import bookings as booking_routes
 from tutor_calendar.application.ports import (
     BookingRepository,
     Clock,
     CredentialStore,
+    Ledger,
     Mailer,
     ManageLinks,
+    StatementLinks,
     TutorRepository,
 )
 from tutor_calendar.config import Settings
@@ -29,14 +41,14 @@ from tutor_calendar.config import Settings
 logger = logging.getLogger("tutor_calendar")
 
 
-def _manage_links(settings: Settings) -> ManageLinks:
+def _signing_secret(settings: Settings) -> str:
     if settings.secret_key is not None:
-        return HmacManageLinks(settings.secret_key)
+        return settings.secret_key
     logger.warning(
-        "TC_SECRET_KEY is not set: links for managing a booking will stop working "
-        "when this process restarts."
+        "TC_SECRET_KEY is not set: links for managing a booking and for reading a "
+        "statement will stop working when this process restarts."
     )
-    return HmacManageLinks.with_random_secret()
+    return secrets.token_urlsafe(32)
 
 
 def create_app(
@@ -48,6 +60,8 @@ def create_app(
     credentials: CredentialStore | None = None,
     mailer: Mailer | None = None,
     links: ManageLinks | None = None,
+    ledger: Ledger | None = None,
+    statement_links: StatementLinks | None = None,
 ) -> FastAPI:
     """Composition root: the only place where adapters are chosen and wired together.
 
@@ -65,15 +79,23 @@ def create_app(
         finally:
             await engine.dispose()
 
-    app = FastAPI(title="Tutor Calendar API", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="Tutor Calendar API", version="0.5.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.engine = engine
     app.state.clock = clock or SystemClock()
     app.state.tutors = tutors or PostgresTutorRepository(engine)
     app.state.bookings = bookings or PostgresBookingRepository(engine)
     app.state.credentials = credentials or PostgresCredentialStore(engine)
-    app.state.mailer = mailer or LoggingMailer()
-    app.state.links = links or _manage_links(settings)
+    app.state.ledger = ledger or PostgresLedger(engine)
+    # Nothing is sent while a request is being answered: mail is queued in the
+    # database and a worker delivers it. See ADR 0007.
+    app.state.mailer = mailer or OutboxMailer(PostgresOutbox(engine), app.state.clock)
+    if links is None or statement_links is None:
+        secret = _signing_secret(settings)
+        links = links or HmacManageLinks(secret)
+        statement_links = statement_links or HmacStatementLinks(secret)
+    app.state.links = links
+    app.state.statement_links = statement_links
 
     app.add_middleware(
         CORSMiddleware,
@@ -90,6 +112,8 @@ def create_app(
     app.include_router(managed_booking.router, prefix="/api/v1")
     app.include_router(panel.router, prefix="/api/v1")
     app.include_router(series.router, prefix="/api/v1")
+    app.include_router(billing.panel, prefix="/api/v1")
+    app.include_router(billing.shared, prefix="/api/v1")
     return app
 
 

@@ -63,6 +63,9 @@ export function PanelLayout() {
           <NavLink className="panel-nav__link" to="/panel/regulars">
             Regular lessons
           </NavLink>
+          <NavLink className="panel-nav__link" to="/panel/students">
+            Students
+          </NavLink>
           <NavLink className="panel-nav__link" to="/panel/availability">
             Availability
           </NavLink>

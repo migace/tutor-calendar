@@ -9,11 +9,11 @@ looks different: the same students at the same times, paid for in blocks, with
 "can we move Thursday?" as the most common request. This project is built
 around that workflow.
 
-> **Status: week 4 of 6.** A visitor can book a lesson and cancel it with a
-> link. A tutor can sign in, see their week, change their hours, cancel lessons
-> and set up weekly lessons for regular students. Packages of hours are next,
-> and e-mail is still written to the log instead of being sent. See the
-> [roadmap](#roadmap).
+> **Status: week 5 of 6.** A visitor can book a lesson and cancel it with a
+> link. A tutor can sign in, see their week, change their hours, cancel lessons,
+> set up weekly lessons and keep track of prepaid lesson time, with a statement
+> to share with the parent. Confirmations and reminders are sent by a worker.
+> What is left is polish and a hosted demo. See the [roadmap](#roadmap).
 
 ## What is interesting here
 
@@ -31,6 +31,15 @@ an idempotency key, so a retry after a timeout returns the booking the first
 attempt made. The page relies on that to retry failed requests on its own.
 [ADR 0004](docs/adr/0004-idempotent-booking-requests.md) covers the design and
 its one known gap.
+
+**Money that cannot be quietly edited, and mail that cannot be lost.** Prepaid
+lesson time is a ledger: entries are only ever added, a database trigger refuses
+to change or delete one, and a unique constraint means a lesson is charged at
+most once however many workers try. E-mail is queued in the same transaction as
+the booking that caused it and delivered by a worker, so there is never a
+booking without a confirmation on its way, or a confirmation for a booking that
+was rolled back. [ADR 0007](docs/adr/0007-ledger-and-outbox.md) explains both,
+and why delivery is "at least once" on purpose.
 
 **Weekly lessons are just lessons.** "Tuesdays at 17:00 for ten weeks" is laid
 out into ordinary bookings when it is created, so the constraint that prevents
@@ -103,26 +112,37 @@ cd backend && uv sync && uv run alembic upgrade head && uv run python -m tutor_c
 cd frontend && pnpm install && pnpm dev
 ```
 
+A third process charges finished lessons and sends e-mail. Bookings work
+without it, but nothing is charged and no mail goes out:
+
+```bash
+cd backend && uv run python -m tutor_calendar.worker
+```
+
 Open <http://localhost:5173> for the demo tutor's booking page. The API
 documents itself at <http://localhost:8000/docs>.
 
 To see the tutor panel, go to <http://localhost:5173/panel> and ask for a
-sign-in link for `demo@example.com`. E-mail is not sent yet: the message, with
-its link, appears in the output of the API.
+sign-in link for `demo@example.com`. With no mail server configured the worker
+writes each message to its output, link included.
 
-Links for managing a booking are signed with `TC_SECRET_KEY`. Without it the
-API makes up a key at start and says so, and those links stop working when it
-restarts. See `backend/.env.example`.
+Links for managing a booking and for reading a statement are signed with
+`TC_SECRET_KEY`. Without it the API makes up a key at start and says so, those
+links stop working when it restarts, and the worker sends no reminders. See
+`backend/.env.example`.
 
 The second command migrates the database and stores a demo tutor, whose
 booking page is the one the frontend opens.
 
-To run the API and the database in containers instead, with the same
-migration and demo tutor:
+To run the API, the worker and the database in containers instead, with the
+same migration and demo tutor:
 
 ```bash
 docker compose up --build
 ```
+
+This also starts [Mailpit](https://mailpit.axllent.org/), which catches every
+message the worker sends. Read them at <http://localhost:8025>.
 
 ## Test it
 
@@ -153,6 +173,7 @@ backend/src/tutor_calendar/
   application/   use cases and the ports they need
   adapters/      implementations of ports: PostgreSQL, in-memory fakes, clock
   api/           FastAPI routes, schemas and the composition root
+  worker.py      the background process: charges lessons, queues reminders, sends mail
 backend/tests/
   unit/          domain, use cases, the architecture rule
   contract/      what a repository must do, run against PostgreSQL and the fake
@@ -161,7 +182,7 @@ backend/tests/
 frontend/src/
   api/           generated types and a thin client
   ui/            components that know nothing about tutors: Button, TextField, Notice
-  features/      booking, auth and panel: one folder per user-facing feature
+  features/      booking, auth, panel and billing: one folder per user-facing feature
 docs/adr/        architecture decision records
 ```
 
@@ -174,8 +195,8 @@ docs/adr/        architecture decision records
    start of a component library - done.
 4. **Recurring lessons** with exceptions, the lesson state machine, cancellation
    policy - done.
-5. Packages of hours as an append-only ledger, the parent's statement,
-   reminders through a transactional outbox.
+5. **Packages of hours** as an append-only ledger, the parent's statement,
+   reminders through a transactional outbox - done.
 6. Accessibility audit, demo data, load-test numbers, a hosted demo.
 
 Deliberately out of scope for now: online payments, Google Calendar sync, SMS,

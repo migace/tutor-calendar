@@ -15,6 +15,10 @@ export type WeeklyRule = components["schemas"]["WeeklyRuleModel"];
 export type ManagedBooking = components["schemas"]["ManagedBookingOut"];
 export type Series = components["schemas"]["SeriesOut"];
 export type SeriesPlan = components["schemas"]["SeriesIn"];
+export type Account = components["schemas"]["AccountOut"];
+export type LedgerEntry = components["schemas"]["EntryOut"];
+export type NewEntry = components["schemas"]["EntryIn"];
+export type Statement = components["schemas"]["StatementOut"];
 
 export class ApiError extends Error {
   readonly status: number;
@@ -212,4 +216,58 @@ export async function endSeries(seriesId: string): Promise<Series> {
     headers: { Accept: "application/json" },
   });
   return parse<Series>(response);
+}
+
+export async function fetchAccounts(signal?: AbortSignal): Promise<Account[]> {
+  const response = await fetch("/api/v1/me/students", {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return parse<Account[]>(response);
+}
+
+const studentUrl = (email: string) => `/api/v1/me/students/${encodeURIComponent(email)}`;
+const monthQuery = (month: string | null) => (month ? `?month=${encodeURIComponent(month)}` : "");
+
+/**
+ * Records time bought, or a correction, under an id the caller chose. Entries
+ * are permanent; sending the same one again with the same id changes nothing.
+ */
+export async function recordEntry(
+  email: string,
+  entryId: string,
+  entry: NewEntry,
+): Promise<LedgerEntry> {
+  const response = await fetch(`${studentUrl(email)}/entries/${encodeURIComponent(entryId)}`, {
+    method: "PUT",
+    headers: JSON_BODY,
+    body: JSON.stringify(entry),
+  });
+  return parse<LedgerEntry>(response);
+}
+
+/** One month ("YYYY-MM-DD", any day of it) of a student's account, for their tutor. */
+export async function fetchStatement(
+  email: string,
+  month: string | null,
+  signal?: AbortSignal,
+): Promise<Statement> {
+  const response = await fetch(`${studentUrl(email)}/statement${monthQuery(month)}`, {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return parse<Statement>(response);
+}
+
+/** The same statement for a parent, who has a link instead of a session. */
+export async function fetchSharedStatement(
+  token: string,
+  month: string | null,
+  signal?: AbortSignal,
+): Promise<Statement> {
+  const response = await fetch(`/api/v1/statement${monthQuery(month)}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    signal,
+  });
+  return parse<Statement>(response);
 }

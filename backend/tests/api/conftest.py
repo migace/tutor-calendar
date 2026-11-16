@@ -6,8 +6,9 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.factories import NOW, a_tutor
+from tests.factories import LINKS, NOW, STATEMENT_LINKS, a_tutor
 from tutor_calendar.adapters.clock import FixedClock
+from tutor_calendar.adapters.in_memory_billing import InMemoryLedger
 from tutor_calendar.adapters.in_memory_bookings import InMemoryBookingRepository
 from tutor_calendar.adapters.in_memory_credentials import InMemoryCredentialStore
 from tutor_calendar.adapters.in_memory_tutors import InMemoryTutorRepository
@@ -34,6 +35,9 @@ def client(mailer: InMemoryMailer) -> Iterator[TestClient]:
         bookings=InMemoryBookingRepository(),
         credentials=InMemoryCredentialStore(),
         mailer=mailer,
+        ledger=InMemoryLedger(),
+        links=LINKS,
+        statement_links=STATEMENT_LINKS,
     )
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client

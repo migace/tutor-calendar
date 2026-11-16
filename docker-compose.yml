@@ -1,5 +1,6 @@
 # `docker compose up -d db`    PostgreSQL only, for running the backend from your shell
-# `docker compose up --build`  PostgreSQL and the API (migrates and adds a demo tutor on start)
+# `docker compose up --build`  everything: PostgreSQL, the API (migrates and adds a demo
+#                              tutor on start), the worker, and Mailpit to catch its mail
 services:
   db:
     image: postgres:17-alpine
@@ -38,6 +39,31 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "tutor_calendar.worker"]
+    environment:
+      TC_DATABASE_URL: postgresql+asyncpg://tutor:tutor@db:5432/tutor_calendar
+      # The same key as the API, or the links in reminders could not be opened.
+      TC_SECRET_KEY: local-development-only-not-a-real-secret
+      TC_SMTP_HOST: mailpit
+      TC_SMTP_PORT: "1025"
+      TC_SMTP_STARTTLS: "false"
+      TC_WORKER_INTERVAL_SECONDS: "5"
+    depends_on:
+      # The API runs the migrations; the worker needs the tables they create.
+      api:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # Catches all outgoing mail. Read it at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
 volumes:
   db-data:
