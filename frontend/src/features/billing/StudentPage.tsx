@@ -10,12 +10,15 @@ import {
   type Statement,
 } from "../../api/client";
 import { formatMinutes } from "../../dates";
+import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton, TextField } from "../../ui";
 import { StatementTable } from "./StatementTable";
 import { ACCOUNTS_KEY } from "./StudentsPage";
 
 /** One student's account, as their tutor sees it: the statement, and a way to add to it. */
 export function StudentPage() {
+  const all = useT();
+  const t = all.student;
   const email = useParams().email!;
   const [params] = useSearchParams();
   const month = params.get("month");
@@ -26,26 +29,27 @@ export function StudentPage() {
     retry: (failures, failure) => failures < 1 && !(failure instanceof ApiError),
   });
 
-  if (isPending) return <PageSkeleton label="Loading the account…" />;
+  const back = (
+    <p>
+      <Link className="link" to="/panel/students">
+        {t.all}
+      </Link>
+    </p>
+  );
+
+  if (isPending) return <PageSkeleton label={t.loading} />;
   if (error instanceof ApiError && error.status === 404) {
     // Not a dead end: a tutor often sells a package before the first lesson,
     // and recording it is what opens the account.
     return (
       <div className="regulars">
-        <title>{`${email} · Tutor Calendar`}</title>
+        <title>{t.pageTitle(email)}</title>
         <header>
-          <p>
-            <Link className="link" to="/panel/students">
-              All students
-            </Link>
-          </p>
+          {back}
           <h1 className="week-bar__title">{email}</h1>
         </header>
-        <Notice title="Nothing is recorded for this address yet">
-          <p>
-            Record lesson time below to open an account for this student. Check the address
-            first: it is how their lessons will be matched to the account.
-          </p>
+        <Notice title={t.nothingTitle}>
+          <p>{t.nothingBody}</p>
         </Notice>
         <AddTime email={email} />
       </div>
@@ -53,24 +57,21 @@ export function StudentPage() {
   }
   if (error) {
     return (
-      <Notice tone="problem" title="We could not load the account">
+      <Notice tone="problem" title={t.loadFailedTitle}>
         <Button busy={isFetching} onClick={() => refetch()}>
-          Try again
+          {all.common.tryAgain}
         </Button>
       </Notice>
     );
   }
 
+  const name = data.student_name ?? data.student_email;
   return (
     <div className="regulars" aria-busy={isFetching}>
-      <title>{`${data.student_name ?? data.student_email} · Tutor Calendar`}</title>
+      <title>{t.pageTitle(name)}</title>
       <header>
-        <p>
-          <Link className="link" to="/panel/students">
-            All students
-          </Link>
-        </p>
-        <h1 className="week-bar__title">{data.student_name ?? data.student_email}</h1>
+        {back}
+        <h1 className="week-bar__title">{name}</h1>
         {data.student_name && <p className="page__meta">{data.student_email}</p>}
       </header>
 
@@ -84,6 +85,7 @@ export function StudentPage() {
 type Kind = NewEntry["kind"];
 
 function AddTime({ email }: { email: string }) {
+  const t = useT().student;
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<Kind>("purchase");
   const [hours, setHours] = useState("");
@@ -116,16 +118,15 @@ function AddTime({ email }: { email: string }) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    // A decimal comma is how hours are written in much of Europe.
     const minutes = Math.round(Number(hours.replace(",", ".")) * 60);
     const found: typeof problems = {};
     if (!hours.trim() || !Number.isFinite(minutes) || minutes === 0) {
-      found.hours = "Enter a number of hours, such as 10 or 1.5.";
+      found.hours = t.hoursInvalid;
     } else if (kind === "purchase" && minutes < 0) {
-      found.hours = "A package adds time. To take time away, record a correction.";
+      found.hours = t.packageNegative;
     }
-    if (kind === "adjustment" && !note.trim()) {
-      found.note = "Say what is being corrected. The parent sees this on the statement.";
-    }
+    if (kind === "adjustment" && !note.trim()) found.note = t.reasonMissing;
     setProblems(found);
     if (found.hours) return hoursInput.current?.focus();
     if (found.note) return noteInput.current?.focus();
@@ -133,21 +134,20 @@ function AddTime({ email }: { email: string }) {
   }
 
   const edited = () => record.reset();
+  const kinds = [
+    ["purchase", t.kindPackage],
+    ["adjustment", t.kindCorrection],
+  ] as const;
 
   return (
     <section aria-labelledby="add-time-heading">
       <h2 className="step__heading" id="add-time-heading">
-        Add lesson time
+        {t.addHeading}
       </h2>
       <form className="form" noValidate onSubmit={handleSubmit}>
         <fieldset className="choice">
-          <legend className="field__label">What is it?</legend>
-          {(
-            [
-              ["purchase", "A package the student paid for"],
-              ["adjustment", "A correction"],
-            ] as const
-          ).map(([value, label]) => (
+          <legend className="field__label">{t.what}</legend>
+          {kinds.map(([value, label]) => (
             <label key={value} className="choice__option">
               <input
                 type="radio"
@@ -165,12 +165,8 @@ function AddTime({ email }: { email: string }) {
         </fieldset>
         <TextField
           ref={hoursInput}
-          label="Hours"
-          hint={
-            kind === "purchase"
-              ? "For example 10, or 7.5."
-              : "Use a minus to take time away, for example -1."
-          }
+          label={t.hours}
+          hint={kind === "purchase" ? t.hoursHintPackage : t.hoursHintCorrection}
           name="hours"
           inputMode="decimal"
           autoComplete="off"
@@ -184,8 +180,8 @@ function AddTime({ email }: { email: string }) {
         />
         <TextField
           ref={noteInput}
-          label={kind === "purchase" ? "Note (optional)" : "Reason"}
-          hint="Shown on the statement."
+          label={kind === "purchase" ? t.noteOptional : t.reason}
+          hint={t.noteHint}
           name="note"
           maxLength={200}
           autoComplete="off"
@@ -196,23 +192,22 @@ function AddTime({ email }: { email: string }) {
             edited();
           }}
         />
-        <p className="page__meta">
-          Entries cannot be edited or removed afterwards. A mistake is put right with a correction,
-          so the statement always shows what really happened.
-        </p>
+        <p className="page__meta">{t.permanent}</p>
         {record.isError && (
           <p className="form__error" role="alert">
             {record.error instanceof ApiError && record.error.status === 422
-              ? `This could not be recorded${record.error.detail ? `: ${record.error.detail}` : ""}.`
-              : "We could not record this. Nothing was added; it is safe to try again."}
+              ? t.refused(record.error.detail)
+              : t.failed}
           </p>
         )}
         <p className="hours__status" role="status">
           {record.isSuccess &&
-            `Recorded ${record.data.minutes > 0 ? "+" : ""}${formatMinutes(record.data.minutes)}.`}
+            t.recorded(
+              `${record.data.minutes > 0 ? "+" : ""}${formatMinutes(record.data.minutes)}`,
+            )}
         </p>
         <Button type="submit" busy={record.isPending}>
-          {record.isPending ? "Recording…" : "Record"}
+          {record.isPending ? t.submitting : t.submit}
         </Button>
       </form>
     </section>
@@ -220,6 +215,7 @@ function AddTime({ email }: { email: string }) {
 }
 
 function ParentLink({ statement }: { statement: Statement }) {
+  const t = useT().student;
   const [copied, setCopied] = useState(false);
   if (!statement.share_token) return null;
   // In the fragment, which browsers do not send to servers.
@@ -229,15 +225,12 @@ function ParentLink({ statement }: { statement: Statement }) {
   return (
     <section aria-labelledby="parent-link-heading">
       <h2 className="step__heading" id="parent-link-heading">
-        Link for the parent
+        {t.parentHeading}
       </h2>
-      <p className="page__meta">
-        Anyone with this link can read this student&rsquo;s statements, and nothing else. It
-        cannot be used to change anything.
-      </p>
+      <p className="page__meta">{t.parentIntro}</p>
       <p className="share">
         <Link className="link" to={path}>
-          Open the parent&rsquo;s view
+          {t.openParent}
         </Link>
         <Button
           variant="secondary"
@@ -246,9 +239,9 @@ function ParentLink({ statement }: { statement: Statement }) {
             setCopied(true);
           }}
         >
-          Copy link
+          {t.copy}
         </Button>
-        <span role="status">{copied && "Copied."}</span>
+        <span role="status">{copied && t.copied}</span>
       </p>
     </section>
   );

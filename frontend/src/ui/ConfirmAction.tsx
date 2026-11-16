@@ -9,8 +9,8 @@ interface ConfirmActionProps {
   question: string;
   /** The button that goes ahead, e.g. "Yes, cancel". */
   confirmLabel: string;
-  /** The button that backs out. */
-  declineLabel?: string;
+  /** The button that backs out, e.g. "No, keep it". */
+  declineLabel: string;
   /** Names the thing acted on for screen readers, when the label alone is ambiguous. */
   describedBy?: string;
   busy?: boolean;
@@ -27,7 +27,7 @@ export function ConfirmAction({
   label,
   question,
   confirmLabel,
-  declineLabel = "No, keep it",
+  declineLabel,
   describedBy,
   busy = false,
   onConfirm,

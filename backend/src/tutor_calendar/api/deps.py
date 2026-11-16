@@ -158,6 +158,7 @@ async def get_signed_in_tutor(request: Request, session_token: SessionToken = No
 
 
 EngineDep = Annotated[AsyncEngine, Depends(get_engine)]
+ClockDep = Annotated[Clock, Depends(_clock)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 ListAvailableSlotsDep = Annotated[ListAvailableSlots, Depends(get_list_available_slots)]
 BookLessonDep = Annotated[BookLesson, Depends(get_book_lesson)]

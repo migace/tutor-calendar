@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/auth/demo-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enter the demo tutor's panel without a sign-in link
+         * @description Exists only on a public demonstration. Everywhere else it answers 404.
+         */
+        post: operations["open_demo_session_api_v1_auth_demo_session_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/links": {
         parameters: {
             query?: never;
@@ -58,6 +78,23 @@ export interface paths {
          * @description Free until the tutor's deadline. After it the lesson is cancelled all the same but still charged, and the response says so in `cancelled_late`.
          */
         delete: operations["cancel_booking_api_v1_booking_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the web app needs to know before anyone signs in */
+        get: operations["config_api_v1_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -412,6 +449,14 @@ export interface components {
              * Format: date-time
              */
             start: string;
+        };
+        /** ConfigOut */
+        ConfigOut: {
+            /**
+             * Demo Mode
+             * @description True on a public demonstration: the demo tutor's panel is open to anyone
+             */
+            demo_mode: boolean;
         };
         /** DayOut */
         DayOut: {
@@ -804,6 +849,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    open_demo_session_api_v1_auth_demo_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description This is not a demonstration */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     request_sign_in_link_api_v1_auth_links_post: {
         parameters: {
             query?: never;
@@ -969,6 +1043,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    config_api_v1_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigOut"];
                 };
             };
         };

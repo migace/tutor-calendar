@@ -36,7 +36,14 @@ def generate_slots(
     filter that grid and never shift it, so asking for a narrower window always
     returns a subset of what a wider one returns.
     """
-    taken = tuple(busy)
+    # Busy ranges are walked once, alongside the slots, instead of being
+    # compared with every slot: listing a full calendar was the slowest thing
+    # the load test found. Both run in order of start.
+    taken = sorted(busy, key=lambda other: other.start)
+    next_taken = 0
+    # The latest end among the busy ranges that start before the current slot ends.
+    busy_until: datetime | None = None
+
     tz = schedule.timezone
     # A slot never ends after its own rule, so each local day's grid is
     # self-contained and the window's first local day is early enough to start.
@@ -50,7 +57,14 @@ def generate_slots(
             if previous_end is not None and slot.start < previous_end:
                 continue
             previous_end = slot.end
-            if window.contains(slot) and not any(slot.overlaps(other) for other in taken):
+            # Slots come in order and never overlap, so their ends only grow
+            # and a busy range passed for one slot stays passed for the rest.
+            while next_taken < len(taken) and taken[next_taken].start < slot.end:
+                ends = taken[next_taken].end
+                busy_until = ends if busy_until is None else max(busy_until, ends)
+                next_taken += 1
+            is_free = busy_until is None or busy_until <= slot.start
+            if is_free and window.contains(slot):
                 slots.append(slot)
         day += _ONE_DAY
     return slots

@@ -101,16 +101,15 @@ describe("problemsIn", () => {
       monday(block(1, "12:00", "09:00"), block(2, "10:00", "10:00"), block(3, "", "11:00")),
     );
 
-    expect(problems.get(1)).toMatch(/later than the start/);
-    expect(problems.get(2)).toMatch(/later than the start/);
-    expect(problems.get(3)).toMatch(/both times/);
+    expect(problems.get(1)).toBe("order");
+    expect(problems.get(2)).toBe("order");
+    expect(problems.get(3)).toBe("missing");
   });
 
   it("flags the later of two overlapping blocks, whatever order they were typed in", () => {
     const problems = problemsIn(monday(block(1, "11:00", "13:00"), block(2, "09:00", "12:00")));
 
-    expect([...problems.keys()]).toEqual([1]);
-    expect(problems.get(1)).toMatch(/overlap/);
+    expect([...problems.entries()]).toEqual([[1, "overlap"]]);
   });
 
   it("does not compare blocks on different days", () => {

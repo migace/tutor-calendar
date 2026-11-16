@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from tutor_calendar.api.deps import EngineDep
-from tutor_calendar.api.schemas import HealthOut
+from tutor_calendar.api.deps import EngineDep, SettingsDep
+from tutor_calendar.api.schemas import ConfigOut, HealthOut
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -26,3 +26,11 @@ async def ready(engine: EngineDep) -> HealthOut:
             detail="database is not reachable",
         ) from error
     return HealthOut(status="ok")
+
+
+public = APIRouter(tags=["configuration"])
+
+
+@public.get("/config", summary="What the web app needs to know before anyone signs in")
+async def config(settings: SettingsDep) -> ConfigOut:
+    return ConfigOut(demo_mode=settings.demo_mode)

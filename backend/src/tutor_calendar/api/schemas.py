@@ -204,6 +204,12 @@ class StatementOut(BaseModel):
     )
 
 
+class ConfigOut(BaseModel):
+    demo_mode: bool = Field(
+        description="True on a public demonstration: the demo tutor's panel is open to anyone"
+    )
+
+
 class ErrorOut(BaseModel):
     detail: str
 

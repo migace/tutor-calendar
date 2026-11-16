@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 
+import { useT } from "../../i18n";
 import { Button, Notice } from "../../ui";
 
 interface BookingConfirmationProps {
@@ -19,24 +20,20 @@ export function BookingConfirmation({
   manageToken,
   onBookAnother,
 }: BookingConfirmationProps) {
+  const t = useT().booking;
   return (
     // Moving focus here makes a screen reader announce the result of the form.
-    <Notice tone="success" title="You’re booked" focusOnMount>
+    <Notice tone="success" title={t.bookedTitle} focusOnMount>
       <p className="notice__lead">{slotLabel}</p>
-      <p>
-        {lessonMinutes}-minute lesson with {tutorName}.
-      </p>
+      <p>{t.lessonWith(lessonMinutes, tutorName)}</p>
       <p>
         {/* The token is in the fragment, which browsers do not send to servers. */}
         <Link className="link" to={{ pathname: "/booking", hash: `token=${manageToken}` }}>
-          View or cancel this booking
+          {t.viewOrCancel}
         </Link>
       </p>
-      <p>
-        Save that link: confirmation emails are not sent yet, and it is the only way to cancel
-        online.
-      </p>
-      <Button onClick={onBookAnother}>Book another lesson</Button>
+      <p>{t.saveLink}</p>
+      <Button onClick={onBookAnother}>{t.bookAnother}</Button>
     </Notice>
   );
 }

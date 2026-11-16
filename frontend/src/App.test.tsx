@@ -151,7 +151,7 @@ describe("signing in", () => {
     renderApp("/sign-in/verify");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("does not work any more");
-    expect(api.calls).toHaveLength(0);
+    expect(api.callsTo("POST /api/v1/auth/session")).toHaveLength(0);
   });
 
   it("signs out and forgets what was loaded", async () => {

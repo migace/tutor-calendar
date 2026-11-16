@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router";
 
 import { signIn } from "../../api/client";
+import { useT } from "../../i18n";
 import { Notice, PageSkeleton } from "../../ui";
 import { PROFILE_KEY } from "./useProfile";
 
@@ -18,6 +19,7 @@ function tokenFromFragment(): string | null {
  * free: however many times this component mounts, there is one request.
  */
 export function VerifyPage() {
+  const t = useT().signIn;
   const queryClient = useQueryClient();
   // Read once, then wipe it from the address bar and the browser history.
   const [token] = useState(tokenFromFragment);
@@ -42,12 +44,12 @@ export function VerifyPage() {
 
   if (token === null || attempt.isError) {
     return (
-      <main className="page">
-        <Notice tone="problem" level={1} title="This sign-in link does not work any more">
-          <p>Links can be used once and expire after 15 minutes.</p>
+      <main className="page" id="content">
+        <Notice tone="problem" level={1} title={t.deadLinkTitle}>
+          <p>{t.deadLinkBody}</p>
           <p>
             <Link className="link" to="/sign-in">
-              Email me a new link
+              {t.newLink}
             </Link>
           </p>
         </Notice>
@@ -56,8 +58,8 @@ export function VerifyPage() {
   }
 
   return (
-    <main className="page">
-      <PageSkeleton label="Signing you in…" />
+    <main className="page" id="content">
+      <PageSkeleton label={t.signingIn} />
     </main>
   );
 }

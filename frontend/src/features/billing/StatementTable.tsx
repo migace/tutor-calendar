@@ -1,12 +1,16 @@
 import { Link } from "react-router";
 
-import type { Statement } from "../../api/client";
+import type { LedgerEntry, Statement } from "../../api/client";
+import { currentLocale, useT, type Messages } from "../../i18n";
 import { formatDay, formatMinutes } from "../../dates";
-import { UI_LOCALE } from "../../i18n";
 
-function describeBalance(minutes: number): string {
-  if (minutes < 0) return `${formatMinutes(-minutes)} to pay for`;
-  return `${formatMinutes(minutes)} left`;
+/** What an entry is, in the reader's language. */
+function describeEntry(entry: LedgerEntry, t: Messages["statement"]): string {
+  // Charges are written by the system with a fixed note, which can be translated.
+  if (entry.kind === "lesson") return t.lessonNotes[entry.note] ?? entry.note;
+  // Anything else carries the tutor's own words, shown as written.
+  if (entry.note) return entry.note;
+  return entry.kind === "purchase" ? t.purchase : t.adjustment;
 }
 
 interface StatementTableProps {
@@ -17,12 +21,17 @@ interface StatementTableProps {
 
 /** One month of an account: where it started, what happened, where it ended. */
 export function StatementTable({ statement, monthLink }: StatementTableProps) {
-  const day = new Intl.DateTimeFormat(UI_LOCALE, {
+  const t = useT().statement;
+  const day = new Intl.DateTimeFormat(currentLocale(), {
     timeZone: statement.timezone,
     day: "numeric",
     month: "short",
   });
   const month = formatDay(statement.month, { month: "long", year: "numeric" });
+  const now =
+    statement.balance_minutes < 0
+      ? t.toPayFor(formatMinutes(-statement.balance_minutes))
+      : t.left(formatMinutes(statement.balance_minutes));
 
   return (
     <section className="statement" aria-labelledby="statement-heading">
@@ -32,50 +41,48 @@ export function StatementTable({ statement, monthLink }: StatementTableProps) {
             {month}
           </h2>
           <p className="statement__balance" role="status">
-            Now: <strong>{describeBalance(statement.balance_minutes)}</strong>
+            {t.now} <strong>{now}</strong>
           </p>
         </div>
-        <nav className="week-bar__nav" aria-label="Months">
+        <nav className="week-bar__nav" aria-label={t.monthsNav}>
           <Link className="button button--secondary" to={monthLink(statement.previous)}>
-            Previous
+            {t.previous}
           </Link>
           <Link className="button button--secondary" to={monthLink(statement.next)}>
-            Next
+            {t.next}
           </Link>
         </nav>
       </div>
 
       <table className="statement__table">
-        <caption className="visually-hidden">
-          Lesson time in {month}, with the balance before and after
-        </caption>
+        <caption className="visually-hidden">{t.caption(month)}</caption>
         <thead>
           <tr>
-            <th scope="col">Date</th>
-            <th scope="col">What</th>
+            <th scope="col">{t.date}</th>
+            <th scope="col">{t.what}</th>
             <th scope="col" className="statement__amount">
-              Time
+              {t.time}
             </th>
           </tr>
         </thead>
         <tbody>
           <tr className="statement__total">
             <th scope="row" colSpan={2}>
-              Balance at the start of the month
+              {t.opening}
             </th>
             <td className="statement__amount">{formatMinutes(statement.opening_minutes)}</td>
           </tr>
           {statement.entries.length === 0 && (
             <tr>
               <td colSpan={3} className="week__empty">
-                Nothing happened this month.
+                {t.nothing}
               </td>
             </tr>
           )}
           {statement.entries.map((entry) => (
             <tr key={entry.id}>
               <td>{day.format(new Date(entry.at))}</td>
-              <td>{entry.note || (entry.kind === "purchase" ? "Lesson time bought" : entry.kind)}</td>
+              <td>{describeEntry(entry, t)}</td>
               <td className="statement__amount">
                 {entry.minutes > 0 ? "+" : ""}
                 {formatMinutes(entry.minutes)}
@@ -84,7 +91,7 @@ export function StatementTable({ statement, monthLink }: StatementTableProps) {
           ))}
           <tr className="statement__total">
             <th scope="row" colSpan={2}>
-              Balance at the end of the month
+              {t.closing}
             </th>
             <td className="statement__amount">{formatMinutes(statement.closing_minutes)}</td>
           </tr>

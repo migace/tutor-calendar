@@ -295,11 +295,9 @@ describe("the parent's view", () => {
     expect(await screen.findByRole("heading", { name: "Anna Nowak" })).toBeVisible();
     expect(screen.getByText(/Lessons with Demo Tutor/)).toBeVisible();
     expect(screen.getByRole("table")).toBeVisible();
-    expect(api.calls[0]!.url).toBe("/api/v1/statement");
-    const headers = new Headers(
-      (vi.mocked(fetch).mock.calls[0]![1] as RequestInit | undefined)?.headers,
-    );
-    expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+    const [request] = api.callsTo("GET /api/v1/statement");
+    expect(request!.url).toBe("/api/v1/statement");
+    expect(request!.headers!.get("Authorization")).toBe(`Bearer ${TOKEN}`);
     // Nothing a parent could use to change the account, or to share further.
     expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
     expect(screen.queryByRole("link", { name: /parent/ })).toBeNull();

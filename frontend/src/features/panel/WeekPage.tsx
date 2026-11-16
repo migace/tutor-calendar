@@ -2,8 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { Link, useSearchParams } from "react-router";
 
 import { ApiError, changeLesson, fetchWeek, type Lesson } from "../../api/client";
-import { formatDay } from "../../dates";
-import { UI_LOCALE } from "../../i18n";
+import { formatDay, formatHours } from "../../dates";
+import { useT, type Messages } from "../../i18n";
 import { Button, ConfirmAction, Notice, PageSkeleton } from "../../ui";
 
 function describeWeek(first: string, last: string): string {
@@ -12,14 +12,16 @@ function describeWeek(first: string, last: string): string {
   return `${from} – ${formatDay(last, { day: "numeric", month: "long", year: "numeric" })}`;
 }
 
-function describeStatus(lesson: Lesson): string | null {
-  if (lesson.status === "no_show") return "No-show";
+function describeStatus(lesson: Lesson, t: Messages["week"]): string | null {
+  if (lesson.status === "no_show") return t.statusNoShow;
   if (lesson.status !== "cancelled") return null;
-  if (lesson.cancelled_by === "tutor") return "Cancelled by you";
-  return lesson.cancelled_late ? "Cancelled late by the student" : "Cancelled by the student";
+  if (lesson.cancelled_by === "tutor") return t.statusCancelledByYou;
+  return lesson.cancelled_late ? t.statusCancelledLate : t.statusCancelledByStudent;
 }
 
 export function WeekPage() {
+  const all = useT();
+  const t = all.week;
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
   const date = params.get("date");
@@ -39,24 +41,18 @@ export function WeekPage() {
     },
   });
 
-  if (isPending) return <PageSkeleton label="Loading your week…" />;
+  if (isPending) return <PageSkeleton label={t.loading} />;
   if (error) {
     return (
-      <Notice tone="problem" title="We could not load your week">
-        <p>This is a problem on our side. Your lessons are unchanged.</p>
+      <Notice tone="problem" title={t.loadFailedTitle}>
+        <p>{t.loadFailedBody}</p>
         <Button busy={isFetching} onClick={() => refetch()}>
-          Try again
+          {all.common.tryAgain}
         </Button>
       </Notice>
     );
   }
 
-  const time = new Intl.DateTimeFormat(UI_LOCALE, {
-    timeZone: week.timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const hours = (lesson: Lesson) => time.formatRange(new Date(lesson.start), new Date(lesson.end));
   const first = week.days[0]!.date;
   const last = week.days[week.days.length - 1]!.date;
   const held = week.days.flatMap((day) => day.lessons).filter((l) => l.status !== "cancelled");
@@ -65,32 +61,27 @@ export function WeekPage() {
 
   return (
     <section aria-labelledby="week-heading" aria-busy={isFetching}>
-      <title>Your week · Tutor Calendar</title>
+      <title>{t.pageTitle}</title>
       <div className="week-bar">
         <div>
           <h1 className="week-bar__title" id="week-heading">
             {describeWeek(first, last)}
           </h1>
           <p className="page__meta" role="status">
-            {held.length === 0
-              ? "No lessons"
-              : held.length === 1
-                ? "1 lesson"
-                : `${held.length} lessons`}{" "}
-            · Times in {week.timezone}
+            {t.lessons(held.length)} · {t.timesIn(week.timezone)}
           </p>
         </div>
-        <nav className="week-bar__nav" aria-label="Weeks">
+        <nav className="week-bar__nav" aria-label={t.weeksNav}>
           <Link className="button button--secondary" to={`?date=${week.previous}`}>
-            Previous
+            {t.previous}
           </Link>
           {!showsThisWeek && (
             <Link className="button button--secondary" to="/panel">
-              This week
+              {t.thisWeek}
             </Link>
           )}
           <Link className="button button--secondary" to={`?date=${week.next}`}>
-            Next
+            {t.next}
           </Link>
         </nav>
       </div>
@@ -98,8 +89,8 @@ export function WeekPage() {
       {change.isError && (
         <p className="form__error" role="alert">
           {change.error instanceof ApiError && change.error.detail
-            ? `That was not possible: ${change.error.detail}.`
-            : "We could not change the lesson. Nothing was changed; please try again."}
+            ? t.refused(change.error.detail)
+            : t.failed}
         </p>
       )}
 
@@ -119,14 +110,14 @@ export function WeekPage() {
                 <span className="week__date">
                   {formatDay(day.date, { day: "numeric", month: "short" })}
                 </span>
-                {isToday && <span className="week__today"> Today</span>}
+                {isToday && <span className="week__today"> {t.today}</span>}
               </h2>
               {day.lessons.length === 0 ? (
-                <p className="week__empty">No lessons</p>
+                <p className="week__empty">{t.noLessons}</p>
               ) : (
                 <ul className="week__lessons">
                   {day.lessons.map((lesson) => {
-                    const status = describeStatus(lesson);
+                    const status = describeStatus(lesson, t);
                     const labelId = `lesson-${lesson.id}`;
                     // The server decides what is allowed; this only avoids
                     // offering a button that is certain to be refused.
@@ -137,24 +128,20 @@ export function WeekPage() {
                         className={`lesson${lesson.status === "cancelled" ? " lesson--off" : ""}`}
                       >
                         <span id={labelId}>
-                          <span className="lesson__time">{hours(lesson)}</span>{" "}
+                          <span className="lesson__time">{formatHours(lesson, week.timezone)}</span>{" "}
                           <span className="lesson__student">{lesson.student_name}</span>
                         </span>
                         <a className="lesson__email" href={`mailto:${lesson.student_email}`}>
                           {lesson.student_email}
                         </a>
-                        {lesson.series_id && <span className="lesson__tag">Weekly</span>}
+                        {lesson.series_id && <span className="lesson__tag">{t.weekly}</span>}
                         {status && <span className="lesson__status">{status}</span>}
                         {lesson.status === "confirmed" && (
                           <ConfirmAction
-                            label={upcoming ? "Cancel" : "No-show"}
-                            question={
-                              upcoming
-                                ? "Cancel this lesson? The student is not charged."
-                                : "Record that the student did not come? The lesson is charged."
-                            }
-                            confirmLabel={upcoming ? "Yes, cancel" : "Yes, no-show"}
-                            declineLabel="No"
+                            label={upcoming ? t.cancel : t.noShow}
+                            question={upcoming ? t.askCancel : t.askNoShow}
+                            confirmLabel={upcoming ? t.yesCancel : t.yesNoShow}
+                            declineLabel={t.no}
                             describedBy={labelId}
                             busy={busyWith === lesson.id}
                             onConfirm={() =>

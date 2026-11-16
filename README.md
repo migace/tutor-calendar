@@ -9,11 +9,24 @@ looks different: the same students at the same times, paid for in blocks, with
 "can we move Thursday?" as the most common request. This project is built
 around that workflow.
 
-> **Status: week 5 of 6.** A visitor can book a lesson and cancel it with a
-> link. A tutor can sign in, see their week, change their hours, cancel lessons,
-> set up weekly lessons and keep track of prepaid lesson time, with a statement
-> to share with the parent. Confirmations and reminders are sent by a worker.
-> What is left is polish and a hosted demo. See the [roadmap](#roadmap).
+> **Status: the six-week roadmap is built; a hosted demo is the one thing left.**
+> A visitor can book a lesson and cancel it with a link. A tutor can sign in, see
+> their week, change their hours, cancel lessons, set up weekly lessons and keep
+> track of prepaid lesson time, with a statement to share with the parent. A
+> worker sends confirmations and reminders. The interface is in English and
+> Polish. See [what is not done](#what-is-not-done).
+
+## Try it
+
+With Docker, one command starts everything with a few weeks of sample data:
+
+```bash
+docker compose up --build
+```
+
+Then open <http://localhost:8000>. The banner at the top leads to the tutor's
+side, where one button opens the demo tutor's panel. Mail the application sends
+is caught by Mailpit at <http://localhost:8025>.
 
 ## What is interesting here
 
@@ -82,6 +95,19 @@ framework imports, use cases depend on ports, and
 build if an inner layer imports an outer one.
 [ADR 0001](docs/adr/0001-hexagonal-modular-monolith.md) has the reasoning.
 
+**Checked for accessibility on every commit.** Each screen goes through
+axe-core in the states where things go wrong, and colour contrast is computed
+from the design tokens for both themes, so a colour that is too pale fails the
+build. [docs/accessibility.md](docs/accessibility.md) lists what was found and,
+more to the point, what has not been checked: nobody has used it with a screen
+reader yet.
+
+**Numbers with their caveats.** A load test fires requests at the running API
+and then asks the database what was stored, so a fast run that double-booked
+would count as a failure. It found a quadratic step in listing slots, since
+replaced. [docs/load-test.md](docs/load-test.md) has the figures and says
+plainly what they do not show.
+
 **One API contract, checked at compile time.** The frontend's types are
 generated from the backend's OpenAPI document, and CI fails if the committed
 contract is out of date.
@@ -95,7 +121,7 @@ contract is out of date.
 | Tests | pytest, Hypothesis, Vitest, Testing Library |
 | Tooling | uv, pnpm, Ruff, mypy (strict), ESLint, GitHub Actions |
 
-## Run it
+## Develop it
 
 You need [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/) and, for
 the database, Docker.
@@ -134,15 +160,8 @@ links stop working when it restarts, and the worker sends no reminders. See
 The second command migrates the database and stores a demo tutor, whose
 booking page is the one the frontend opens.
 
-To run the API, the worker and the database in containers instead, with the
-same migration and demo tutor:
-
-```bash
-docker compose up --build
-```
-
-This also starts [Mailpit](https://mailpit.axllent.org/), which catches every
-message the worker sends. Read them at <http://localhost:8025>.
+[docs/deployment.md](docs/deployment.md) describes the image, the two
+processes, every setting, and what to do before pointing real students at it.
 
 ## Test it
 
@@ -174,6 +193,7 @@ backend/src/tutor_calendar/
   adapters/      implementations of ports: PostgreSQL, in-memory fakes, clock
   api/           FastAPI routes, schemas and the composition root
   worker.py      the background process: charges lessons, queues reminders, sends mail
+backend/scripts/ the load test
 backend/tests/
   unit/          domain, use cases, the architecture rule
   contract/      what a repository must do, run against PostgreSQL and the fake
@@ -183,6 +203,7 @@ frontend/src/
   api/           generated types and a thin client
   ui/            components that know nothing about tutors: Button, TextField, Notice
   features/      booking, auth, panel and billing: one folder per user-facing feature
+docs/            accessibility, load test and deployment notes
 docs/adr/        architecture decision records
 ```
 
@@ -197,7 +218,25 @@ docs/adr/        architecture decision records
    policy - done.
 5. **Packages of hours** as an append-only ledger, the parent's statement,
    reminders through a transactional outbox - done.
-6. Accessibility audit, demo data, load-test numbers, a hosted demo.
+6. **Accessibility audit, demo data, load-test numbers**, Polish interface,
+   one deployable image - done. A hosted demo is not up yet.
 
-Deliberately out of scope for now: online payments, Google Calendar sync, SMS,
-schools with several teachers, a native mobile app.
+## What is not done
+
+Said here so that nobody has to find out by trying:
+
+- **There is no hosted demo.** Everything needed to run one is in
+  [docs/deployment.md](docs/deployment.md).
+- **Nobody has used it with a screen reader**, and nobody but its author has
+  used it at all.
+- **No rate limiting.** Do not put it on the public internet with a mail server
+  configured.
+- **Tutors cannot sign up.** The demo tutor is the only one, unless a row is
+  added to the database.
+- **A weekly series has an end** (at most 52 lessons) and its time cannot be
+  changed, only ended and started again.
+- **E-mail is in English only**, and old messages, tokens and sessions are
+  never cleaned up.
+
+Deliberately out of scope: online payments, Google Calendar sync, SMS, schools
+with several teachers, a native mobile app.
