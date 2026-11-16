@@ -1,0 +1,340 @@
+/**
+ * Every sentence the interface can say, in English.
+ *
+ * This file is the source of truth for the shape: `pl.ts` must provide exactly
+ * the same keys, which the compiler checks. Entries that depend on a value are
+ * functions, so each language can put the value where its grammar wants it.
+ */
+export const en = {
+  common: {
+    tryAgain: "Try again",
+    tryingAgain: "Trying again…",
+    timesShownIn: "Times shown in",
+    language: "Language",
+    skipToContent: "Skip to content",
+    siteName: "Tutor Calendar",
+    noKeepIt: "No, keep it",
+  },
+
+  demo: {
+    banner: "This is a demonstration with made-up students. It is reset regularly.",
+    toPanel: "See the tutor’s side",
+    toBooking: "See the booking page",
+    enterIntro: "No account is needed here: this is a demonstration.",
+    enter: "Enter the demo tutor’s panel",
+    enterFailed: "We could not open the demo. Please try again.",
+  },
+
+  notFound: {
+    title: "There is nothing at this address",
+    home: "Go to the demo booking page",
+  },
+
+  booking: {
+    loading: "Loading available times…",
+    notFoundTitle: "This booking page does not exist",
+    notFoundBody: "Check the link you were given, or ask your tutor for a new one.",
+    loadFailedTitle: "We could not load the calendar",
+    loadFailedBody:
+      "This is a problem on our side, not yours. Your tutor’s times are unchanged.",
+    pageTitle: (tutor: string) => `Book a lesson with ${tutor}`,
+    eyebrow: "Book a lesson",
+    lessonLength: (minutes: number) => `${minutes}-minute lesson`,
+    tutorIsIn: (zone: string) => `(your tutor is in ${zone})`,
+    lostTitle: "That time is no longer available",
+    lostBody: "Someone booked it just before you, or it is now too soon. Please pick another.",
+    emptyTitle: "No free times in the next two weeks",
+    emptyBody:
+      "New times open up every day. Check back tomorrow or contact your tutor directly.",
+    availableTimes: "Available times",
+    selected: (when: string) => `Selected: ${when}`,
+    pickATime: "Pick a time to continue.",
+    continue: "Continue",
+
+    yourDetails: "Your details",
+    changeTime: "Change time",
+    studentName: "Student's name",
+    studentNameHint: "Who the lesson is for.",
+    email: "Email address",
+    emailHint: "So the tutor can reach you about this lesson.",
+    nameMissing: "Enter the student's name.",
+    nameTooLong: (max: number) => `Use ${max} characters or fewer.`,
+    emailMissing: "Enter an email address.",
+    emailInvalid: "Enter an email address like name@example.com.",
+    serverRejected: "The server did not accept these details. Check the name and email address.",
+    couldNotConfirm:
+      "We could not confirm your booking. You have not been booked twice: it is safe to try again.",
+    submitting: "Booking…",
+    submit: "Book lesson",
+
+    bookedTitle: "You’re booked",
+    lessonWith: (minutes: number, tutor: string) => `${minutes}-minute lesson with ${tutor}.`,
+    viewOrCancel: "View or cancel this booking",
+    saveLink:
+      "Save that link: it is the only way to cancel online. It is also in the email we are sending you.",
+    bookAnother: "Book another lesson",
+  },
+
+  manage: {
+    loading: "Loading your booking…",
+    badLinkTitle: "This link does not lead to a booking",
+    badLinkBody: "Check that you copied the whole link from your booking confirmation.",
+    loadFailedTitle: "We could not load your booking",
+    loadFailedBody: "This is a problem on our side. Your booking is unchanged.",
+    pageTitle: (tutor: string) => `Your lesson with ${tutor}`,
+    eyebrow: "Your booking",
+    lessonFor: (student: string) => `Lesson for ${student}`,
+    cancelledTitle: "This lesson is cancelled",
+    cancelledByTutor: "Your tutor cancelled it. You will not be charged.",
+    cancelledLate:
+      "It was cancelled after the free-cancellation deadline, so it is still charged.",
+    cancelledInTime: "It was cancelled in time and will not be charged.",
+    missedTitle: "This lesson was missed",
+    yourLesson: "Your lesson",
+    termsLate:
+      "The time for cancelling free of charge has passed. You can still cancel, but the lesson will be charged.",
+    termsUntil: (when: string) => `You can cancel free of charge until ${when}.`,
+    termsAlways: "You can cancel free of charge at any time before the lesson.",
+    cancel: "Cancel lesson",
+    askCancel: "Cancel this lesson?",
+    askCancelLate: "Cancel this lesson? It will still be charged.",
+    yesCancel: "Yes, cancel",
+    missedBody: "Your tutor recorded that nobody came.",
+    startedBody: "It has started, so it can no longer be cancelled here.",
+    refused: "This lesson could not be cancelled: it has already started or been cancelled.",
+    failed: "We could not cancel the lesson. It is still booked; please try again.",
+  },
+
+  signIn: {
+    pageTitle: "Sign in · Tutor Calendar",
+    checking: "Checking whether you are signed in…",
+    checkEmailTitle: "Check your email",
+    // The address goes between these two, in bold.
+    checkEmailBefore: "If",
+    checkEmailAfter:
+      "belongs to a tutor, a sign-in link is on its way. It works once and expires in 15 minutes.",
+    useDifferent: "Use a different address",
+    eyebrow: "Tutor panel",
+    title: "Sign in",
+    intro: "No password to remember: we email you a link that signs you in.",
+    email: "Email address",
+    emailHint: "The address your tutor account was set up with.",
+    emailMissing: "Enter your email address.",
+    emailInvalid: "Enter an email address like name@example.com.",
+    sendFailed: "We could not send the link. Please try again.",
+    sending: "Sending…",
+    send: "Email me a sign-in link",
+    signingIn: "Signing you in…",
+    deadLinkTitle: "This sign-in link does not work any more",
+    deadLinkBody: "Links can be used once and expire after 15 minutes.",
+    newLink: "Email me a new link",
+  },
+
+  panel: {
+    loading: "Loading your panel…",
+    loadFailedTitle: "We could not load your panel",
+    loadFailedBody: "This is a problem on our side. Your lessons are unchanged.",
+    eyebrow: "Tutor panel",
+    nav: "Panel",
+    week: "Week",
+    regulars: "Regular lessons",
+    students: "Students",
+    availability: "Availability",
+    bookingPage: "Booking page",
+    signOut: "Sign out",
+    signOutFailed: "We could not sign you out. Please try again.",
+  },
+
+  week: {
+    pageTitle: "Your week · Tutor Calendar",
+    loading: "Loading your week…",
+    loadFailedTitle: "We could not load your week",
+    loadFailedBody: "This is a problem on our side. Your lessons are unchanged.",
+    lessons: (count: number) =>
+      count === 0 ? "No lessons" : count === 1 ? "1 lesson" : `${count} lessons`,
+    timesIn: (zone: string) => `Times in ${zone}`,
+    weeksNav: "Weeks",
+    previous: "Previous",
+    thisWeek: "This week",
+    next: "Next",
+    today: "Today",
+    noLessons: "No lessons",
+    weekly: "Weekly",
+    statusNoShow: "No-show",
+    statusCancelledByYou: "Cancelled by you",
+    statusCancelledLate: "Cancelled late by the student",
+    statusCancelledByStudent: "Cancelled by the student",
+    cancel: "Cancel",
+    noShow: "No-show",
+    askCancel: "Cancel this lesson? The student is not charged.",
+    askNoShow: "Record that the student did not come? The lesson is charged.",
+    yesCancel: "Yes, cancel",
+    yesNoShow: "Yes, no-show",
+    no: "No",
+    refused: (detail: string) => `That was not possible: ${detail}.`,
+    failed: "We could not change the lesson. Nothing was changed; please try again.",
+  },
+
+  hours: {
+    pageTitle: "Weekly hours · Tutor Calendar",
+    loading: "Loading your hours…",
+    loadFailedTitle: "We could not load your hours",
+    loadFailedBody: "This is a problem on our side. Nothing has been changed.",
+    heading: "Weekly hours",
+    intro: (minutes: number, zone: string) =>
+      `When visitors can book a ${minutes}-minute lesson. Times are in ${zone}. Lessons that are already booked are not affected.`,
+    notTeaching: "Not teaching",
+    // "Monday, from" or, when a day has several blocks, "Monday, hours 2, from".
+    from: (weekday: string, block: number | null) =>
+      `${weekday}${block === null ? "" : `, hours ${block}`}, from`,
+    to: (weekday: string, block: number | null) =>
+      `${weekday}${block === null ? "" : `, hours ${block}`}, to`,
+    remove: "Remove",
+    removeBlock: (weekday: string, start: string, end: string) =>
+      `Remove ${weekday} ${start}–${end}`,
+    add: "Add hours",
+    addOn: (weekday: string) => `Add hours on ${weekday}`,
+    problemMissing: "Enter both times.",
+    problemOrder: "The end must be later than the start.",
+    problemOverlap: "These hours overlap the ones before them.",
+    refused: (detail: string | null) =>
+      `The server did not accept these hours${detail ? `: ${detail}` : ""}.`,
+    failed: "We could not save your hours. Nothing has been changed; please try again.",
+    saved: "Saved. Visitors now see these hours.",
+    saving: "Saving…",
+    save: "Save changes",
+  },
+
+  series: {
+    pageTitle: "Regular lessons · Tutor Calendar",
+    heading: "Regular lessons",
+    intro: (zone: string) =>
+      `A lesson at the same time every week for one student. Times are in ${zone}.`,
+    yours: "Your weekly lessons",
+    endFailed: "We could not end the series. Nothing was changed; please try again.",
+    loading: "Loading your weekly lessons…",
+    loadFailedTitle: "We could not load your weekly lessons",
+    none: "None yet.",
+    // "Tuesdays at 17:00"
+    plan: (weekday: string, time: string) => `${weekday}s at ${time}`,
+    noneLeft: "No lessons left.",
+    left: (count: number, next: string) => `${count} still to come, next on ${next}.`,
+    noLessonOn: (days: string) => `No lesson on ${days}.`,
+    end: "End series",
+    askEnd: (count: number) =>
+      `Cancel the ${count} lessons still to come? The student is not charged.`,
+    yesEnd: "Yes, end it",
+    addHeading: "Add a weekly lesson",
+    studentName: "Student's name",
+    studentEmail: "Student's email",
+    firstLesson: "First lesson",
+    firstLessonHint: "Later lessons are on the same weekday.",
+    time: "Time",
+    weeks: "Number of weeks",
+    weeksHint: "From 1 to 52.",
+    nameMissing: "Enter the student's name.",
+    emailInvalid: "Enter an email address like name@example.com.",
+    firstDayMissing: "Choose the day of the first lesson.",
+    timeMissing: "Choose a time.",
+    weeksInvalid: "Enter a number of weeks from 1 to 52.",
+    clashTitle: "Some of these lessons clash with others",
+    clashBody: (days: string) =>
+      `There is already a lesson on ${days}. Nothing has been booked yet.`,
+    bookOthers: "Book the other weeks",
+    refused: (detail: string | null) =>
+      `These lessons cannot be booked${detail ? `: ${detail}` : ""}.`,
+    failed: "We could not book these lessons. Nothing was booked; it is safe to try again.",
+    booked: (count: number, student: string) => `Booked ${count} lessons for ${student}.`,
+    submitting: "Booking…",
+    submit: "Book these lessons",
+  },
+
+  students: {
+    pageTitle: "Students · Tutor Calendar",
+    loading: "Loading your students…",
+    loadFailedTitle: "We could not load your students",
+    heading: "Students",
+    intro:
+      "Lesson time each student has paid for and not used yet. A lesson is taken off once it is over.",
+    empty: "Students also appear here once they book a lesson.",
+    left: (time: string) => `${time} left`,
+    toPayFor: (time: string) => `${time} to pay for`,
+    find: "Find or add a student by email",
+    findHint: "To record a package for someone who has not booked a lesson yet.",
+    emailInvalid: "Enter an email address like name@example.com.",
+    open: "Open account",
+  },
+
+  student: {
+    pageTitle: (student: string) => `${student} · Tutor Calendar`,
+    loading: "Loading the account…",
+    loadFailedTitle: "We could not load the account",
+    all: "All students",
+    nothingTitle: "Nothing is recorded for this address yet",
+    nothingBody:
+      "Record lesson time below to open an account for this student. Check the address first: it is how their lessons will be matched to the account.",
+    addHeading: "Add lesson time",
+    what: "What is it?",
+    kindPackage: "A package the student paid for",
+    kindCorrection: "A correction",
+    hours: "Hours",
+    hoursHintPackage: "For example 10, or 7.5.",
+    hoursHintCorrection: "Use a minus to take time away, for example -1.",
+    noteOptional: "Note (optional)",
+    reason: "Reason",
+    noteHint: "Shown on the statement.",
+    permanent:
+      "Entries cannot be edited or removed afterwards. A mistake is put right with a correction, so the statement always shows what really happened.",
+    hoursInvalid: "Enter a number of hours, such as 10 or 1.5.",
+    packageNegative: "A package adds time. To take time away, record a correction.",
+    reasonMissing: "Say what is being corrected. The parent sees this on the statement.",
+    refused: (detail: string | null) =>
+      `This could not be recorded${detail ? `: ${detail}` : ""}.`,
+    failed: "We could not record this. Nothing was added; it is safe to try again.",
+    recorded: (time: string) => `Recorded ${time}.`,
+    submitting: "Recording…",
+    submit: "Record",
+    parentHeading: "Link for the parent",
+    parentIntro:
+      "Anyone with this link can read this student’s statements, and nothing else. It cannot be used to change anything.",
+    openParent: "Open the parent’s view",
+    copy: "Copy link",
+    copied: "Copied.",
+  },
+
+  statement: {
+    now: "Now:",
+    left: (time: string) => `${time} left`,
+    toPayFor: (time: string) => `${time} to pay for`,
+    monthsNav: "Months",
+    previous: "Previous",
+    next: "Next",
+    caption: (month: string) => `Lesson time in ${month}, with the balance before and after`,
+    date: "Date",
+    what: "What",
+    time: "Time",
+    opening: "Balance at the start of the month",
+    closing: "Balance at the end of the month",
+    nothing: "Nothing happened this month.",
+    purchase: "Lesson time bought",
+    adjustment: "Correction",
+    // What the system writes on a charge, by the note the server stores.
+    lessonNotes: {
+      Lesson: "Lesson",
+      "Missed lesson": "Missed lesson",
+      "Lesson cancelled late": "Lesson cancelled late",
+    } as Record<string, string>,
+
+    loading: "Loading the statement…",
+    badLinkTitle: "This link does not lead to a statement",
+    badLinkBody: "Check that you copied the whole link, or ask the tutor for a new one.",
+    loadFailedTitle: "We could not load the statement",
+    loadFailedBody: "This is a problem on our side. Please try again.",
+    pageTitle: (tutor: string) => `Lesson time with ${tutor}`,
+    eyebrow: "Lesson time",
+    meta: (tutor: string, zone: string) =>
+      `Lessons with ${tutor} · Dates on the tutor’s calendar (${zone})`,
+  },
+};
+
+export type Messages = typeof en;

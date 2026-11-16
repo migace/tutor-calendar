@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +17,13 @@ class Settings(BaseSettings):
     # Session cookies are marked Secure. Browsers still accept them on
     # http://localhost, so this only needs turning off for plain-HTTP hosts.
     cookie_secure: bool = True
+    # For a public demonstration: anyone may enter the demo tutor's panel
+    # without a sign-in link, and sample activity is created. Never set this
+    # on an installation that holds real students.
+    demo_mode: bool = False
+    # A folder with the built web app. When set, the API serves it too, which
+    # is how production runs: one process, one origin.
+    static_dir: Path | None = None
     # Signs the links students use to manage a booking. Without it a random
     # one is made up at start, and links stop working when the process restarts.
     secret_key: str | None = None

@@ -19,6 +19,7 @@ export type Account = components["schemas"]["AccountOut"];
 export type LedgerEntry = components["schemas"]["EntryOut"];
 export type NewEntry = components["schemas"]["EntryIn"];
 export type Statement = components["schemas"]["StatementOut"];
+export type Config = components["schemas"]["ConfigOut"];
 
 export class ApiError extends Error {
   readonly status: number;
@@ -270,4 +271,22 @@ export async function fetchSharedStatement(
     signal,
   });
   return parse<Statement>(response);
+}
+
+/** What the app needs to know before anyone signs in. */
+export async function fetchConfig(signal?: AbortSignal): Promise<Config> {
+  const response = await fetch("/api/v1/config", {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return parse<Config>(response);
+}
+
+/** On a public demonstration only: enters the demo tutor's panel without a link. */
+export async function openDemoSession(): Promise<Profile> {
+  const response = await fetch("/api/v1/auth/demo-session", {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return parse<Profile>(response);
 }

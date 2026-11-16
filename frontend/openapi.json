@@ -137,6 +137,20 @@
         "title": "BookingOut",
         "type": "object"
       },
+      "ConfigOut": {
+        "properties": {
+          "demo_mode": {
+            "description": "True on a public demonstration: the demo tutor's panel is open to anyone",
+            "title": "Demo Mode",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "demo_mode"
+        ],
+        "title": "ConfigOut",
+        "type": "object"
+      },
       "DayOut": {
         "properties": {
           "date": {
@@ -929,10 +943,42 @@
   },
   "info": {
     "title": "Tutor Calendar API",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/demo-session": {
+      "post": {
+        "description": "Exists only on a public demonstration. Everywhere else it answers 404.",
+        "operationId": "open_demo_session_api_v1_auth_demo_session_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "This is not a demonstration"
+          }
+        },
+        "summary": "Enter the demo tutor's panel without a sign-in link",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
     "/api/v1/auth/links": {
       "post": {
         "description": "Always answers 202, whether or not the address belongs to a tutor, so it cannot be used to find out who has an account.",
@@ -1124,6 +1170,27 @@
         "summary": "The booking a manage token belongs to",
         "tags": [
           "bookings"
+        ]
+      }
+    },
+    "/api/v1/config": {
+      "get": {
+        "operationId": "config_api_v1_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "What the web app needs to know before anyone signs in",
+        "tags": [
+          "configuration"
         ]
       }
     },

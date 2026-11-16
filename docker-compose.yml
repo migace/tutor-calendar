@@ -1,6 +1,7 @@
 # `docker compose up -d db`    PostgreSQL only, for running the backend from your shell
-# `docker compose up --build`  everything: PostgreSQL, the API (migrates and adds a demo
-#                              tutor on start), the worker, and Mailpit to catch its mail
+# `docker compose up --build`  everything, at http://localhost:8000: PostgreSQL, the API
+#                              serving the web app (it migrates and adds demo data on
+#                              start), the worker, and Mailpit to catch its mail
 services:
   db:
     image: postgres:17-alpine
@@ -19,11 +20,15 @@ services:
       retries: 15
 
   api:
-    build: ./backend
+    build: .
     environment:
       TC_DATABASE_URL: postgresql+asyncpg://tutor:tutor@db:5432/tutor_calendar
       # For local use only, so that booking links survive a restart of the container.
       TC_SECRET_KEY: local-development-only-not-a-real-secret
+      # The image serves the web app too, so everything is at this one address.
+      TC_PUBLIC_URL: http://localhost:8000
+      # Sample students and lessons, and a button to enter the tutor's panel.
+      TC_DEMO_MODE: "true"
     ports:
       - "8000:8000"
     depends_on:
@@ -41,10 +46,11 @@ services:
       retries: 15
 
   worker:
-    build: ./backend
+    build: .
     command: ["python", "-m", "tutor_calendar.worker"]
     environment:
       TC_DATABASE_URL: postgresql+asyncpg://tutor:tutor@db:5432/tutor_calendar
+      TC_PUBLIC_URL: http://localhost:8000
       # The same key as the API, or the links in reminders could not be opened.
       TC_SECRET_KEY: local-development-only-not-a-real-secret
       TC_SMTP_HOST: mailpit

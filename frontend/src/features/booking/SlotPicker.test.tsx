@@ -17,7 +17,6 @@ function renderPicker(props: Partial<Parameters<typeof SlotPicker>[0]> = {}) {
     <SlotPicker
       slots={slots}
       timeZone="Europe/Warsaw"
-      locale="en-GB"
       selected={null}
       onSelect={onSelect}
       {...props}

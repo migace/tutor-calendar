@@ -11,6 +11,7 @@ import {
   type SeriesPlan,
 } from "../../api/client";
 import { formatDay } from "../../dates";
+import { useT, type Messages } from "../../i18n";
 import { Button, ConfirmAction, Notice, PageSkeleton, TextField } from "../../ui";
 import { useTutor } from "./PanelLayout";
 
@@ -21,24 +22,19 @@ type Field = "student_name" | "student_email" | "first_day" | "start" | "weeks";
 type Form = Record<Field, string>;
 const EMPTY: Form = { student_name: "", student_email: "", first_day: "", start: "", weeks: "10" };
 
-function check(form: Form): Partial<Record<Field, string>> {
+function check(form: Form, t: Messages["series"]): Partial<Record<Field, string>> {
   const problems: Partial<Record<Field, string>> = {};
   const weeks = Number(form.weeks);
-  if (!form.student_name.trim()) problems.student_name = "Enter the student's name.";
-  if (!LOOKS_LIKE_EMAIL.test(form.student_email.trim())) {
-    problems.student_email = "Enter an email address like name@example.com.";
-  }
-  if (!form.first_day) problems.first_day = "Choose the day of the first lesson.";
-  if (!form.start) problems.start = "Choose a time.";
-  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 52) {
-    problems.weeks = "Enter a number of weeks from 1 to 52.";
-  }
+  if (!form.student_name.trim()) problems.student_name = t.nameMissing;
+  if (!LOOKS_LIKE_EMAIL.test(form.student_email.trim())) problems.student_email = t.emailInvalid;
+  if (!form.first_day) problems.first_day = t.firstDayMissing;
+  if (!form.start) problems.start = t.timeMissing;
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 52) problems.weeks = t.weeksInvalid;
   return problems;
 }
 
-function describePlan(series: Series): string {
-  const weekday = formatDay(series.first_day, { weekday: "long" });
-  return `${weekday}s at ${series.start.slice(0, 5)}`;
+function describePlan(series: Series, t: Messages["series"]): string {
+  return t.plan(formatDay(series.first_day, { weekday: "long" }), series.start.slice(0, 5));
 }
 
 function listDays(days: readonly string[]): string {
@@ -46,6 +42,8 @@ function listDays(days: readonly string[]): string {
 }
 
 export function SeriesPage() {
+  const all = useT();
+  const t = all.series;
   const tutor = useTutor();
   const queryClient = useQueryClient();
   const { data, error, isPending, isFetching, refetch } = useQuery({
@@ -61,35 +59,33 @@ export function SeriesPage() {
 
   return (
     <div className="regulars">
-      <title>Regular lessons · Tutor Calendar</title>
+      <title>{t.pageTitle}</title>
       <header>
-        <h1 className="week-bar__title">Regular lessons</h1>
-        <p className="page__meta">
-          A lesson at the same time every week for one student. Times are in {tutor.timezone}.
-        </p>
+        <h1 className="week-bar__title">{t.heading}</h1>
+        <p className="page__meta">{t.intro(tutor.timezone)}</p>
       </header>
 
       <NewSeries onCreated={refresh} />
 
       <section aria-labelledby="series-heading">
         <h2 className="step__heading" id="series-heading">
-          Your weekly lessons
+          {t.yours}
         </h2>
         {end.isError && (
           <p className="form__error" role="alert">
-            We could not end the series. Nothing was changed; please try again.
+            {t.endFailed}
           </p>
         )}
         {isPending ? (
-          <PageSkeleton label="Loading your weekly lessons…" />
+          <PageSkeleton label={t.loading} />
         ) : error ? (
-          <Notice tone="problem" title="We could not load your weekly lessons">
+          <Notice tone="problem" title={t.loadFailedTitle}>
             <Button busy={isFetching} onClick={() => refetch()}>
-              Try again
+              {all.common.tryAgain}
             </Button>
           </Notice>
         ) : data.length === 0 ? (
-          <p className="week__empty">None yet.</p>
+          <p className="week__empty">{t.none}</p>
         ) : (
           <ul className="regulars__list">
             {data.map((series) => {
@@ -98,26 +94,25 @@ export function SeriesPage() {
                 (lesson) => lesson.status === "confirmed" && new Date(lesson.start) > now,
               );
               const titleId = `series-${series.id}`;
+              const next =
+                upcoming[0] &&
+                formatDay(upcoming[0].start.slice(0, 10), { day: "numeric", month: "long" });
               return (
                 <li key={series.id} className="day">
                   <h3 className="day__heading" id={titleId}>
-                    {series.student_name} · {describePlan(series)}
+                    {series.student_name} · {describePlan(series, t)}
                   </h3>
                   <p className="page__meta">
-                    {upcoming.length === 0
-                      ? "No lessons left."
-                      : `${upcoming.length} still to come, next on ${formatDay(
-                          upcoming[0]!.start.slice(0, 10),
-                          { day: "numeric", month: "long" },
-                        )}.`}
+                    {next ? t.left(upcoming.length, next) : t.noneLeft}
                     {series.days_without_lesson.length > 0 &&
-                      ` No lesson on ${listDays(series.days_without_lesson)}.`}
+                      ` ${t.noLessonOn(listDays(series.days_without_lesson))}`}
                   </p>
                   {upcoming.length > 0 && (
                     <ConfirmAction
-                      label="End series"
-                      question={`Cancel the ${upcoming.length} lessons still to come? The student is not charged.`}
-                      confirmLabel="Yes, end it"
+                      label={t.end}
+                      question={t.askEnd(upcoming.length)}
+                      confirmLabel={t.yesEnd}
+                      declineLabel={all.common.noKeepIt}
                       describedBy={titleId}
                       busy={end.isPending && end.variables === series.id}
                       onConfirm={() => end.mutate(series.id)}
@@ -134,6 +129,7 @@ export function SeriesPage() {
 }
 
 function NewSeries({ onCreated }: { onCreated: () => void }) {
+  const t = useT().series;
   const [form, setForm] = useState<Form>(EMPTY);
   const [problems, setProblems] = useState<Partial<Record<Field, string>>>({});
   const formElement = useRef<HTMLFormElement>(null);
@@ -176,7 +172,7 @@ function NewSeries({ onCreated }: { onCreated: () => void }) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const found = check(form);
+    const found = check(form, t);
     setProblems(found);
     const first = (Object.keys(EMPTY) as Field[]).find((field) => found[field]);
     if (first) {
@@ -201,22 +197,27 @@ function NewSeries({ onCreated }: { onCreated: () => void }) {
   return (
     <section aria-labelledby="new-series-heading">
       <h2 className="step__heading" id="new-series-heading">
-        Add a weekly lesson
+        {t.addHeading}
       </h2>
       <form className="form regulars__form" noValidate ref={formElement} onSubmit={handleSubmit}>
-        <TextField {...bind("student_name")} label="Student's name" autoComplete="off" />
-        <TextField {...bind("student_email")} label="Student's email" type="email" autoComplete="off" />
+        <TextField {...bind("student_name")} label={t.studentName} autoComplete="off" />
+        <TextField
+          {...bind("student_email")}
+          label={t.studentEmail}
+          type="email"
+          autoComplete="off"
+        />
         <TextField
           {...bind("first_day")}
-          label="First lesson"
-          hint="Later lessons are on the same weekday."
+          label={t.firstLesson}
+          hint={t.firstLessonHint}
           type="date"
         />
-        <TextField {...bind("start")} label="Time" type="time" />
+        <TextField {...bind("start")} label={t.time} type="time" />
         <TextField
           {...bind("weeks")}
-          label="Number of weeks"
-          hint="From 1 to 52."
+          label={t.weeks}
+          hint={t.weeksHint}
           type="number"
           inputMode="numeric"
           min={1}
@@ -224,28 +225,25 @@ function NewSeries({ onCreated }: { onCreated: () => void }) {
         />
 
         {conflicts && (
-          <Notice tone="warning" title="Some of these lessons clash with others">
-            <p>
-              There is already a lesson on {listDays(conflicts)}. Nothing has been booked yet.
-            </p>
+          <Notice tone="warning" title={t.clashTitle}>
+            <p>{t.clashBody(listDays(conflicts))}</p>
             <Button busy={create.isPending} onClick={() => create.mutate(plan(true))}>
-              Book the other weeks
+              {t.bookOthers}
             </Button>
           </Notice>
         )}
         {create.isError && !conflicts && (
           <p className="form__error" role="alert">
             {create.error instanceof ApiError && create.error.status === 422
-              ? `These lessons cannot be booked${create.error.detail ? `: ${create.error.detail}` : ""}.`
-              : "We could not book these lessons. Nothing was booked; it is safe to try again."}
+              ? t.refused(create.error.detail)
+              : t.failed}
           </p>
         )}
         <p className="hours__status" role="status">
-          {create.isSuccess &&
-            `Booked ${create.data.lessons.length} lessons for ${create.data.student_name}.`}
+          {create.isSuccess && t.booked(create.data.lessons.length, create.data.student_name)}
         </p>
         <Button type="submit" busy={create.isPending}>
-          {create.isPending ? "Booking…" : "Book these lessons"}
+          {create.isPending ? t.submitting : t.submit}
         </Button>
       </form>
     </section>

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { ApiError, type Booking, type Slot } from "../../api/client";
+import { useT, type Messages } from "../../i18n";
 import { Button, TextField } from "../../ui";
 import { useBookLesson, type StudentDetails } from "./useBookLesson";
 
@@ -22,30 +23,23 @@ const MAX_NAME_LENGTH = 120;
 // Deliberately loose: something, an @, something with a dot. The server has the final say.
 const LOOKS_LIKE_EMAIL = /^\S+@\S+\.\S+$/;
 
-function check({ name, email }: StudentDetails): Problems {
+function check({ name, email }: StudentDetails, t: Messages["booking"]): Problems {
   const problems: Problems = {};
   if (!name) {
-    problems.name = "Enter the student's name.";
+    problems.name = t.nameMissing;
   } else if (name.length > MAX_NAME_LENGTH) {
-    problems.name = `Use ${MAX_NAME_LENGTH} characters or fewer.`;
+    problems.name = t.nameTooLong(MAX_NAME_LENGTH);
   }
   if (!email) {
-    problems.email = "Enter an email address.";
+    problems.email = t.emailMissing;
   } else if (!LOOKS_LIKE_EMAIL.test(email)) {
-    problems.email = "Enter an email address like name@example.com.";
+    problems.email = t.emailInvalid;
   }
   return problems;
 }
 
 function isRefusal(error: Error | null): boolean {
   return error instanceof ApiError && error.status === 409;
-}
-
-function describeFailure(error: Error): string {
-  if (error instanceof ApiError && error.status === 422) {
-    return "The server did not accept these details. Check the name and email address.";
-  }
-  return "We could not confirm your booking. You have not been booked twice: it is safe to try again.";
 }
 
 export function BookingForm({
@@ -56,6 +50,7 @@ export function BookingForm({
   onSlotUnavailable,
   onChangeTime,
 }: BookingFormProps) {
+  const t = useT().booking;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -71,7 +66,7 @@ export function BookingForm({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const tidied = { name: details.name.trim(), email: details.email.trim() };
-    const found = check(tidied);
+    const found = check(tidied, t);
     setProblems(found);
 
     const firstInvalid = (["name", "email"] as const).find((field) => found[field]);
@@ -100,13 +95,13 @@ export function BookingForm({
   return (
     <section aria-labelledby={headingId}>
       <h2 className="step__heading" id={headingId} ref={heading} tabIndex={-1}>
-        Your details
+        {t.yourDetails}
       </h2>
 
       <div className="summary">
         <p className="summary__time">{slotLabel}</p>
         <Button variant="link" onClick={onChangeTime} disabled={booking.isPending}>
-          Change time
+          {t.changeTime}
         </Button>
       </div>
 
@@ -116,16 +111,16 @@ export function BookingForm({
         <TextField
           {...bind("name")}
           ref={nameInput}
-          label="Student's name"
-          hint="Who the lesson is for."
+          label={t.studentName}
+          hint={t.studentNameHint}
           type="text"
           autoComplete="name"
         />
         <TextField
           {...bind("email")}
           ref={emailInput}
-          label="Email address"
-          hint="So the tutor can reach you about this lesson."
+          label={t.email}
+          hint={t.emailHint}
           type="email"
           autoComplete="email"
           inputMode="email"
@@ -133,12 +128,14 @@ export function BookingForm({
 
         {booking.isError && !isRefusal(booking.error) && (
           <p className="form__error" role="alert">
-            {describeFailure(booking.error)}
+            {booking.error instanceof ApiError && booking.error.status === 422
+              ? t.serverRejected
+              : t.couldNotConfirm}
           </p>
         )}
 
         <Button type="submit" wide busy={booking.isPending}>
-          {booking.isPending ? "Booking…" : "Book lesson"}
+          {booking.isPending ? t.submitting : t.submit}
         </Button>
       </form>
     </section>

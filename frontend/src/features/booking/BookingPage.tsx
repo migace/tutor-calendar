@@ -2,11 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ApiError, fetchSlots, type Booking, type Slot } from "../../api/client";
-import { UI_LOCALE } from "../../i18n";
+import { formatLesson } from "../../dates";
+import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton } from "../../ui";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { BookingForm } from "./BookingForm";
-import { describeSlot } from "./describeSlot";
 import { SlotPicker } from "./SlotPicker";
 
 /**
@@ -30,6 +30,7 @@ export function BookingPage({
   slug,
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
 }: BookingPageProps) {
+  const t = useT();
   const [stage, setStage] = useState<Stage>(START);
   const queryClient = useQueryClient();
   const { data, error, isPending, isFetching, refetch } = useQuery({
@@ -39,8 +40,8 @@ export function BookingPage({
 
   if (isPending) {
     return (
-      <main className="page">
-        <PageSkeleton label="Loading available times…" />
+      <main className="page" id="content">
+        <PageSkeleton label={t.booking.loading} />
       </main>
     );
   }
@@ -48,16 +49,16 @@ export function BookingPage({
   if (error) {
     const notFound = error instanceof ApiError && error.status === 404;
     return (
-      <main className="page">
+      <main className="page" id="content">
         {notFound ? (
-          <Notice tone="problem" level={1} title="This booking page does not exist">
-            <p>Check the link you were given, or ask your tutor for a new one.</p>
+          <Notice tone="problem" level={1} title={t.booking.notFoundTitle}>
+            <p>{t.booking.notFoundBody}</p>
           </Notice>
         ) : (
-          <Notice tone="problem" level={1} title="We could not load the calendar">
-            <p>This is a problem on our side, not yours. Your tutor&rsquo;s times are unchanged.</p>
+          <Notice tone="problem" level={1} title={t.booking.loadFailedTitle}>
+            <p>{t.booking.loadFailedBody}</p>
             <Button busy={isFetching} onClick={() => refetch()}>
-              {isFetching ? "Trying again…" : "Try again"}
+              {isFetching ? t.common.tryingAgain : t.common.tryAgain}
             </Button>
           </Notice>
         )}
@@ -66,20 +67,20 @@ export function BookingPage({
   }
 
   const { tutor, slots } = data;
-  const describe = (slot: { start: string; end: string }) =>
-    describeSlot(slot, timeZone, UI_LOCALE);
+  const describe = (slot: { start: string; end: string }) => formatLesson(slot, timeZone);
   const refreshSlots = () => queryClient.invalidateQueries({ queryKey: ["slots", slug] });
 
   return (
-    <main className="page">
+    <main className="page" id="content">
       {/* React moves this into <head>. Each page names itself in the browser tab. */}
-      <title>{`Book a lesson with ${tutor.display_name}`}</title>
+      <title>{t.booking.pageTitle(tutor.display_name)}</title>
       <header className="page__header">
-        <p className="page__eyebrow">Book a lesson</p>
+        <p className="page__eyebrow">{t.booking.eyebrow}</p>
         <h1 className="page__title">{tutor.display_name}</h1>
         <p className="page__meta">
-          {tutor.lesson_minutes}-minute lesson · Times shown in <strong>{timeZone}</strong>
-          {timeZone !== tutor.timezone && <> (your tutor is in {tutor.timezone})</>}
+          {t.booking.lessonLength(tutor.lesson_minutes)} · {t.common.timesShownIn}{" "}
+          <strong>{timeZone}</strong>
+          {timeZone !== tutor.timezone && <> {t.booking.tutorIsIn(tutor.timezone)}</>}
         </p>
       </header>
 
@@ -145,39 +146,32 @@ function PickTime({
   onSelect,
   onContinue,
 }: PickTimeProps) {
+  const t = useT();
   return (
     <>
       {lostSlot && (
         // Arriving here because the chosen time was refused: focus goes to the explanation.
-        <Notice tone="warning" title="That time is no longer available" focusOnMount>
-          <p>Someone booked it just before you, or it is now too soon. Please pick another.</p>
+        <Notice tone="warning" title={t.booking.lostTitle} focusOnMount>
+          <p>{t.booking.lostBody}</p>
         </Notice>
       )}
 
       {slots.length === 0 ? (
-        <Notice title="No free times in the next two weeks">
-          <p>New times open up every day. Check back tomorrow or contact your tutor directly.</p>
+        <Notice title={t.booking.emptyTitle}>
+          <p>{t.booking.emptyBody}</p>
         </Notice>
       ) : (
         <>
-          <h2 className="visually-hidden">Available times</h2>
-          <SlotPicker
-            slots={slots}
-            timeZone={timeZone}
-            locale={UI_LOCALE}
-            selected={selected}
-            onSelect={onSelect}
-          />
+          <h2 className="visually-hidden">{t.booking.availableTimes}</h2>
+          <SlotPicker slots={slots} timeZone={timeZone} selected={selected} onSelect={onSelect} />
         </>
       )}
 
       <div className="selection">
         <p className="selection__text" role="status">
-          {selected ? <>Selected: {describe(selected)}</> : "Pick a time to continue."}
+          {selected ? t.booking.selected(describe(selected)) : t.booking.pickATime}
         </p>
-        {selected && (
-          <Button onClick={() => onContinue(selected)}>Continue</Button>
-        )}
+        {selected && <Button onClick={() => onContinue(selected)}>{t.booking.continue}</Button>}
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { UI_LOCALE } from "./i18n";
+import { currentLocale } from "./i18n";
 
 /**
  * Formats a calendar date from the API ("2026-11-16").
@@ -8,26 +8,53 @@ import { UI_LOCALE } from "./i18n";
  * so it is read and formatted as UTC, where it cannot shift.
  */
 export function formatDay(date: string, options: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat(UI_LOCALE, { ...options, timeZone: "UTC" }).format(
+  return new Intl.DateTimeFormat(currentLocale(), { ...options, timeZone: "UTC" }).format(
     new Date(`${date}T00:00:00Z`),
   );
 }
 
-/** "Tuesday 17 November, 15:00–16:00" for an instant range, in the given zone. */
-export function formatLesson(lesson: { start: string; end: string }, timeZone: string): string {
-  const day = new Intl.DateTimeFormat(UI_LOCALE, {
+/** The name of a weekday, 0 being Monday, in the language in use. */
+export function weekdayName(index: number): string {
+  // 1 January 2024 was a Monday.
+  return formatDay(`2024-01-0${index + 1}`, { weekday: "long" });
+}
+
+/** "15:00" for an instant, in the given zone. */
+export function formatTime(instant: string, timeZone: string): string {
+  return new Intl.DateTimeFormat(currentLocale(), {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(instant));
+}
+
+/** "15:00–16:00" for an instant range, in the given zone. */
+export function formatHours(lesson: { start: string; end: string }, timeZone: string): string {
+  return new Intl.DateTimeFormat(currentLocale(), {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatRange(new Date(lesson.start), new Date(lesson.end));
+}
+
+/** "Tuesday 17 November" for an instant, in the given zone. */
+export function formatDate(instant: string, timeZone: string): string {
+  return new Intl.DateTimeFormat(currentLocale(), {
     timeZone,
     weekday: "long",
     day: "numeric",
     month: "long",
-  }).format(new Date(lesson.start));
-  const time = new Intl.DateTimeFormat(UI_LOCALE, { timeZone, hour: "2-digit", minute: "2-digit" });
-  return `${day}, ${time.formatRange(new Date(lesson.start), new Date(lesson.end))}`;
+  }).format(new Date(instant));
+}
+
+/** "Tuesday 17 November, 15:00–16:00" for an instant range, in the given zone. */
+export function formatLesson(lesson: { start: string; end: string }, timeZone: string): string {
+  return `${formatDate(lesson.start, timeZone)}, ${formatHours(lesson, timeZone)}`;
 }
 
 /** "Monday 16 November, 15:00" for a single instant, in the given zone. */
 export function formatMoment(instant: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(UI_LOCALE, {
+  return new Intl.DateTimeFormat(currentLocale(), {
     timeZone,
     weekday: "long",
     day: "numeric",
@@ -40,6 +67,7 @@ export function formatMoment(instant: string, timeZone: string): string {
 /**
  * Lesson time for people: "10 h", "1 h 30 min", "45 min", and "−1 h" for time owed.
  * The minus is the typographic one, which screen readers announce as "minus".
+ * "h" and "min" are the international symbols and read the same in Polish.
  */
 export function formatMinutes(minutes: number): string {
   const total = Math.abs(minutes);

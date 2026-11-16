@@ -26,6 +26,7 @@ from tutor_calendar.api.routes import (
     slots,
 )
 from tutor_calendar.api.routes import bookings as booking_routes
+from tutor_calendar.api.web_app import SecurityHeaders, WebApp
 from tutor_calendar.application.ports import (
     BookingRepository,
     Clock,
@@ -79,7 +80,7 @@ def create_app(
         finally:
             await engine.dispose()
 
-    app = FastAPI(title="Tutor Calendar API", version="0.5.0", lifespan=lifespan)
+    app = FastAPI(title="Tutor Calendar API", version="0.6.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.engine = engine
     app.state.clock = clock or SystemClock()
@@ -106,6 +107,7 @@ def create_app(
         allow_headers=["*"],
     )
     app.include_router(health.router)
+    app.include_router(health.public, prefix="/api/v1")
     app.include_router(slots.router, prefix="/api/v1")
     app.include_router(booking_routes.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
@@ -114,6 +116,11 @@ def create_app(
     app.include_router(series.router, prefix="/api/v1")
     app.include_router(billing.panel, prefix="/api/v1")
     app.include_router(billing.shared, prefix="/api/v1")
+
+    app.add_middleware(SecurityHeaders)
+    if settings.static_dir is not None:
+        # Last, so that it only sees what no API route claimed.
+        app.mount("/", WebApp(settings.static_dir), name="web")
     return app
 
 

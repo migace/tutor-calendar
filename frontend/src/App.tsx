@@ -1,6 +1,6 @@
-import { Link, Navigate, Route, Routes, useParams } from "react-router";
+import { Link, Navigate, Route, Routes, useLocation, useParams } from "react-router";
 
-import { SignInPage } from "./features/auth/SignInPage";
+import { SignInPage, useDemoMode } from "./features/auth/SignInPage";
 import { VerifyPage } from "./features/auth/VerifyPage";
 import { SharedStatementPage } from "./features/billing/SharedStatementPage";
 import { StudentPage } from "./features/billing/StudentPage";
@@ -11,6 +11,7 @@ import { AvailabilityPage } from "./features/panel/AvailabilityPage";
 import { PanelLayout } from "./features/panel/PanelLayout";
 import { SeriesPage } from "./features/panel/SeriesPage";
 import { WeekPage } from "./features/panel/WeekPage";
+import { LANGUAGES, setLanguage, useLanguage, useT } from "./i18n";
 import { Notice } from "./ui";
 
 function PublicBookingPage() {
@@ -20,12 +21,14 @@ function PublicBookingPage() {
 }
 
 function NotFound() {
+  const t = useT().notFound;
   return (
-    <main className="page">
-      <Notice level={1} title="There is nothing at this address">
+    <main className="page" id="content">
+      <title>{`${t.title} · Tutor Calendar`}</title>
+      <Notice level={1} title={t.title}>
         <p>
           <Link className="link" to="/">
-            Go to the demo booking page
+            {t.home}
           </Link>
         </p>
       </Notice>
@@ -33,24 +36,93 @@ function NotFound() {
   );
 }
 
+/**
+ * Lets keyboard users jump past the banner and navigation. It moves focus
+ * instead of following its own link: several pages keep a token in the
+ * address fragment, and "#content" would overwrite it.
+ */
+function SkipLink() {
+  const t = useT().common;
+  return (
+    <a
+      className="skip-link"
+      href="#content"
+      onClick={(event) => {
+        event.preventDefault();
+        const content = document.getElementById("content");
+        content?.setAttribute("tabindex", "-1");
+        content?.focus();
+      }}
+    >
+      {t.skipToContent}
+    </a>
+  );
+}
+
+/** On a public demonstration: says so, and points to the other half of the product. */
+function DemoBanner() {
+  const t = useT().demo;
+  const inPanel = useLocation().pathname.startsWith("/panel");
+  if (!useDemoMode()) return null;
+  return (
+    <aside className="demo-banner">
+      <p>
+        {t.banner}{" "}
+        <Link className="link" to={inPanel ? "/book/demo" : "/sign-in"}>
+          {inPanel ? t.toBooking : t.toPanel}
+        </Link>
+      </p>
+    </aside>
+  );
+}
+
+function LanguageSwitch() {
+  const t = useT().common;
+  const language = useLanguage();
+  return (
+    <div className="language" role="group" aria-label={t.language}>
+      {LANGUAGES.map(({ code, name }) => (
+        <button
+          key={code}
+          type="button"
+          className="language__option"
+          // Each name is in its own language, and is announced that way.
+          lang={code}
+          aria-pressed={language === code}
+          onClick={() => setLanguage(code)}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function App() {
   return (
-    <Routes>
-      {/* Until tutors can sign up, the demo tutor's page doubles as the home page. */}
-      <Route path="/" element={<Navigate to="/book/demo" replace />} />
-      <Route path="/book/:slug" element={<PublicBookingPage />} />
-      <Route path="/booking" element={<ManageBookingPage />} />
-      <Route path="/statement" element={<SharedStatementPage />} />
-      <Route path="/sign-in" element={<SignInPage />} />
-      <Route path="/sign-in/verify" element={<VerifyPage />} />
-      <Route path="/panel" element={<PanelLayout />}>
-        <Route index element={<WeekPage />} />
-        <Route path="regulars" element={<SeriesPage />} />
-        <Route path="students" element={<StudentsPage />} />
-        <Route path="students/:email" element={<StudentPage />} />
-        <Route path="availability" element={<AvailabilityPage />} />
-      </Route>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <SkipLink />
+      <DemoBanner />
+      <Routes>
+        {/* Until tutors can sign up, the demo tutor's page doubles as the home page. */}
+        <Route path="/" element={<Navigate to="/book/demo" replace />} />
+        <Route path="/book/:slug" element={<PublicBookingPage />} />
+        <Route path="/booking" element={<ManageBookingPage />} />
+        <Route path="/statement" element={<SharedStatementPage />} />
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/sign-in/verify" element={<VerifyPage />} />
+        <Route path="/panel" element={<PanelLayout />}>
+          <Route index element={<WeekPage />} />
+          <Route path="regulars" element={<SeriesPage />} />
+          <Route path="students" element={<StudentsPage />} />
+          <Route path="students/:email" element={<StudentPage />} />
+          <Route path="availability" element={<AvailabilityPage />} />
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <footer className="site-footer">
+        <LanguageSwitch />
+      </footer>
+    </>
   );
 }

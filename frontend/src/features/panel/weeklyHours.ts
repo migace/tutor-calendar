@@ -1,14 +1,7 @@
 import type { WeeklyRule } from "../../api/client";
 
-export const WEEKDAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
+/** Monday to Sunday, as the API numbers them. */
+export const WEEKDAY_COUNT = 7;
 
 /** One block of hours while it is being edited. Times are "HH:MM", or "" while empty. */
 export interface Block {
@@ -21,6 +14,9 @@ export interface Block {
 /** The blocks of each weekday, Monday first. */
 export type Draft = readonly (readonly Block[])[];
 
+/** What is wrong with a block. The interface turns each into a sentence. */
+export type BlockProblem = "missing" | "order" | "overlap";
+
 let nextId = 1;
 const newId = () => nextId++;
 
@@ -28,7 +24,7 @@ const newId = () => nextId++;
 const toMinutes = (time: string) => time.slice(0, 5);
 
 export function toDraft(rules: readonly WeeklyRule[]): Draft {
-  return WEEKDAYS.map((_, weekday) =>
+  return Array.from({ length: WEEKDAY_COUNT }, (_, weekday) =>
     rules
       .filter((rule) => rule.weekday === weekday)
       .map((rule) => ({ id: newId(), start: toMinutes(rule.start), end: toMinutes(rule.end) }))
@@ -49,7 +45,10 @@ function addHours(time: string, hours: number): string {
 
 /** A new block for a day: after the last one if there is room, otherwise a morning. */
 export function suggestBlock(blocks: readonly Block[]): Block {
-  const latestEnd = blocks.map((block) => block.end).sort().at(-1);
+  const latestEnd = blocks
+    .map((block) => block.end)
+    .sort()
+    .at(-1);
   if (latestEnd && latestEnd <= "20:00") {
     const start = addHours(latestEnd, 1);
     return { id: newId(), start, end: addHours(start, 2) };
@@ -89,14 +88,14 @@ export function withBlockChanged(
  *
  * "HH:MM" strings compare correctly as text, which keeps this free of dates.
  */
-export function problemsIn(draft: Draft): Map<number, string> {
-  const problems = new Map<number, string>();
+export function problemsIn(draft: Draft): Map<number, BlockProblem> {
+  const problems = new Map<number, BlockProblem>();
   for (const blocks of draft) {
     for (const block of blocks) {
       if (!block.start || !block.end) {
-        problems.set(block.id, "Enter both times.");
+        problems.set(block.id, "missing");
       } else if (block.start >= block.end) {
-        problems.set(block.id, "The end must be later than the start.");
+        problems.set(block.id, "order");
       }
     }
     const valid = blocks
@@ -105,7 +104,7 @@ export function problemsIn(draft: Draft): Map<number, string> {
     for (let index = 1; index < valid.length; index++) {
       // Blocks that merely touch (12:00 after 12:00) are fine.
       if (valid[index]!.start < valid[index - 1]!.end) {
-        problems.set(valid[index]!.id, "These hours overlap the ones before them.");
+        problems.set(valid[index]!.id, "overlap");
       }
     }
   }

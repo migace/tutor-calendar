@@ -105,11 +105,9 @@ describe("managing a booking with its link", () => {
     expect(await screen.findByRole("heading", { name: "Demo Tutor" })).toBeVisible();
     expect(screen.getByText(/Tuesday 17 November/)).toBeVisible();
     expect(screen.getByText(/You can cancel free of charge until Monday 16 November/)).toBeVisible();
-    expect(api.calls[0]!.url).toBe("/api/v1/booking");
-    const headers = new Headers(
-      (vi.mocked(fetch).mock.calls[0]![1] as RequestInit | undefined)?.headers,
-    );
-    expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+    const [request] = api.callsTo("GET /api/v1/booking");
+    expect(request!.url).toBe("/api/v1/booking");
+    expect(request!.headers!.get("Authorization")).toBe(`Bearer ${TOKEN}`);
   });
 
   it("asks before cancelling, and backing out changes nothing", async () => {

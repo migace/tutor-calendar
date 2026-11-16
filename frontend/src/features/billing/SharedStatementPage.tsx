@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { ApiError, fetchSharedStatement } from "../../api/client";
+import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton } from "../../ui";
 import { StatementTable } from "./StatementTable";
 
@@ -15,6 +16,8 @@ function tokenFromFragment(): string | null {
  * month. Whoever has the link can read it; nothing can be changed from here.
  */
 export function SharedStatementPage() {
+  const all = useT();
+  const t = all.statement;
   // The token stays in the fragment, which is never sent to a server, and is
   // carried along when moving between months.
   const [token] = useState(tokenFromFragment);
@@ -30,27 +33,27 @@ export function SharedStatementPage() {
 
   if (token === null || (error instanceof ApiError && error.status === 401)) {
     return (
-      <main className="page">
-        <Notice tone="problem" level={1} title="This link does not lead to a statement">
-          <p>Check that you copied the whole link, or ask the tutor for a new one.</p>
+      <main className="page" id="content">
+        <Notice tone="problem" level={1} title={t.badLinkTitle}>
+          <p>{t.badLinkBody}</p>
         </Notice>
       </main>
     );
   }
   if (isPending) {
     return (
-      <main className="page">
-        <PageSkeleton label="Loading the statement…" />
+      <main className="page" id="content">
+        <PageSkeleton label={t.loading} />
       </main>
     );
   }
   if (error) {
     return (
-      <main className="page">
-        <Notice tone="problem" level={1} title="We could not load the statement">
-          <p>This is a problem on our side. Please try again.</p>
+      <main className="page" id="content">
+        <Notice tone="problem" level={1} title={t.loadFailedTitle}>
+          <p>{t.loadFailedBody}</p>
           <Button busy={isFetching} onClick={() => refetch()}>
-            Try again
+            {all.common.tryAgain}
           </Button>
         </Notice>
       </main>
@@ -58,14 +61,12 @@ export function SharedStatementPage() {
   }
 
   return (
-    <main className="page" aria-busy={isFetching}>
-      <title>{`Lesson time with ${data.tutor_name}`}</title>
+    <main className="page" id="content" aria-busy={isFetching}>
+      <title>{t.pageTitle(data.tutor_name)}</title>
       <header className="page__header">
-        <p className="page__eyebrow">Lesson time</p>
+        <p className="page__eyebrow">{t.eyebrow}</p>
         <h1 className="page__title">{data.student_name ?? data.student_email}</h1>
-        <p className="page__meta">
-          Lessons with {data.tutor_name} · Dates on the tutor&rsquo;s calendar ({data.timezone})
-        </p>
+        <p className="page__meta">{t.meta(data.tutor_name, data.timezone)}</p>
       </header>
       <StatementTable
         statement={data}

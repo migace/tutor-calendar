@@ -2,34 +2,42 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
 import { ApiError, fetchAvailability, saveAvailability, type Availability } from "../../api/client";
+import { weekdayName } from "../../dates";
+import { useT, type Messages } from "../../i18n";
 import { Button, Notice, PageSkeleton } from "../../ui";
 import { useTutor } from "./PanelLayout";
 import {
-  WEEKDAYS,
   problemsIn,
   toDraft,
   toRules,
   withBlockAdded,
   withBlockChanged,
   withBlockRemoved,
+  type BlockProblem,
   type Draft,
 } from "./weeklyHours";
 
 const AVAILABILITY_KEY = ["availability"] as const;
 
+function describeProblem(problem: BlockProblem, t: Messages["hours"]): string {
+  return { missing: t.problemMissing, order: t.problemOrder, overlap: t.problemOverlap }[problem];
+}
+
 export function AvailabilityPage() {
+  const all = useT();
+  const t = all.hours;
   const { data, error, isPending, isFetching, refetch } = useQuery({
     queryKey: AVAILABILITY_KEY,
     queryFn: ({ signal }) => fetchAvailability(signal),
   });
 
-  if (isPending) return <PageSkeleton label="Loading your hours…" />;
+  if (isPending) return <PageSkeleton label={t.loading} />;
   if (error) {
     return (
-      <Notice tone="problem" title="We could not load your hours">
-        <p>This is a problem on our side. Nothing has been changed.</p>
+      <Notice tone="problem" title={t.loadFailedTitle}>
+        <p>{t.loadFailedBody}</p>
         <Button busy={isFetching} onClick={() => refetch()}>
-          Try again
+          {all.common.tryAgain}
         </Button>
       </Notice>
     );
@@ -40,6 +48,7 @@ export function AvailabilityPage() {
 }
 
 function HoursEditor({ saved }: { saved: Availability }) {
+  const t = useT().hours;
   const tutor = useTutor();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft>(() => toDraft(saved.rules));
@@ -75,31 +84,28 @@ function HoursEditor({ saved }: { saved: Availability }) {
 
   return (
     <form className="hours" noValidate onSubmit={handleSubmit}>
-      <title>Weekly hours · Tutor Calendar</title>
+      <title>{t.pageTitle}</title>
       <header>
-        <h1 className="week-bar__title">Weekly hours</h1>
-        <p className="page__meta">
-          When visitors can book a {saved.lesson_minutes}-minute lesson. Times are in{" "}
-          {saved.timezone}. Lessons that are already booked are not affected.
-        </p>
+        <h1 className="week-bar__title">{t.heading}</h1>
+        <p className="page__meta">{t.intro(saved.lesson_minutes, saved.timezone)}</p>
       </header>
 
-      {WEEKDAYS.map((weekday, day) => {
-        const blocks = draft[day]!;
+      {draft.map((blocks, day) => {
+        const weekday = weekdayName(day);
         return (
-          <fieldset key={weekday} className="hours__day">
+          <fieldset key={day} className="hours__day">
             <legend className="hours__weekday">{weekday}</legend>
-            {blocks.length === 0 && <p className="week__empty">Not teaching</p>}
+            {blocks.length === 0 && <p className="week__empty">{t.notTeaching}</p>}
             {blocks.map((block, index) => {
-              const problem = showProblems ? problems.get(block.id) : undefined;
+              const found = showProblems ? problems.get(block.id) : undefined;
               const problemId = `block-${block.id}-problem`;
-              const position = blocks.length > 1 ? `, hours ${index + 1}` : "";
+              const position = blocks.length > 1 ? index + 1 : null;
               const shared = {
                 type: "time",
                 className: "field__input hours__time",
                 required: true,
-                "aria-invalid": problem ? true : undefined,
-                "aria-describedby": problem ? problemId : undefined,
+                "aria-invalid": found ? true : undefined,
+                "aria-describedby": found ? problemId : undefined,
               } as const;
               return (
                 <div key={block.id} className="hours__block">
@@ -107,7 +113,7 @@ function HoursEditor({ saved }: { saved: Availability }) {
                     <input
                       {...shared}
                       id={`block-${block.id}-start`}
-                      aria-label={`${weekday}${position}, from`}
+                      aria-label={t.from(weekday, position)}
                       value={block.start}
                       onChange={(event) =>
                         edit(withBlockChanged(draft, day, block.id, { start: event.target.value }))
@@ -116,7 +122,7 @@ function HoursEditor({ saved }: { saved: Availability }) {
                     <span aria-hidden="true">–</span>
                     <input
                       {...shared}
-                      aria-label={`${weekday}${position}, to`}
+                      aria-label={t.to(weekday, position)}
                       value={block.end}
                       onChange={(event) =>
                         edit(withBlockChanged(draft, day, block.id, { end: event.target.value }))
@@ -124,15 +130,15 @@ function HoursEditor({ saved }: { saved: Availability }) {
                     />
                     <Button
                       variant="link"
-                      aria-label={`Remove ${weekday} ${block.start}–${block.end}`}
+                      aria-label={t.removeBlock(weekday, block.start, block.end)}
                       onClick={() => edit(withBlockRemoved(draft, day, block.id))}
                     >
-                      Remove
+                      {t.remove}
                     </Button>
                   </div>
-                  {problem && (
+                  {found && (
                     <p className="field__problem" id={problemId}>
-                      {problem}
+                      {describeProblem(found, t)}
                     </p>
                   )}
                 </div>
@@ -140,10 +146,10 @@ function HoursEditor({ saved }: { saved: Availability }) {
             })}
             <Button
               variant="secondary"
-              aria-label={`Add hours on ${weekday}`}
+              aria-label={t.addOn(weekday)}
               onClick={() => edit(withBlockAdded(draft, day))}
             >
-              Add hours
+              {t.add}
             </Button>
           </fieldset>
         );
@@ -153,15 +159,15 @@ function HoursEditor({ saved }: { saved: Availability }) {
         {save.isError && (
           <p className="form__error" role="alert">
             {save.error instanceof ApiError && save.error.status === 422
-              ? `The server did not accept these hours${save.error.detail ? `: ${save.error.detail}` : ""}.`
-              : "We could not save your hours. Nothing has been changed; please try again."}
+              ? t.refused(save.error.detail)
+              : t.failed}
           </p>
         )}
         <p className="hours__status" role="status">
-          {save.isSuccess && "Saved. Visitors now see these hours."}
+          {save.isSuccess && t.saved}
         </p>
         <Button type="submit" busy={save.isPending}>
-          {save.isPending ? "Saving…" : "Save changes"}
+          {save.isPending ? t.saving : t.save}
         </Button>
       </div>
     </form>

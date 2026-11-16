@@ -19,6 +19,7 @@ from tutor_calendar.domain.scheduling import Tutor
 
 LINK_LIFETIME = timedelta(minutes=15)
 SESSION_LIFETIME = timedelta(days=30)
+DEMO_SESSION_LIFETIME = timedelta(hours=2)
 
 
 def _new_secret() -> str:
@@ -105,6 +106,29 @@ class SignIn:
 
         session_token = _new_secret()
         expires_at = now + SESSION_LIFETIME
+        await self._credentials.add_session(_digest(session_token), tutor.id, expires_at)
+        return SignedIn(tutor, session_token, expires_at)
+
+
+class OpenDemoSession:
+    """Sign a visitor in as the demo tutor, with no link. Only wired up in demo mode."""
+
+    def __init__(
+        self, tutors: TutorRepository, credentials: CredentialStore, clock: Clock, slug: str
+    ) -> None:
+        self._tutors = tutors
+        self._credentials = credentials
+        self._clock = clock
+        self._slug = slug
+
+    async def execute(self) -> SignedIn:
+        tutor = await self._tutors.get_by_slug(self._slug)
+        if tutor is None:
+            raise NotSignedInError
+        now = self._clock.now()
+        session_token = _new_secret()
+        # A demo session is short: it is a look around, not an account.
+        expires_at = now + DEMO_SESSION_LIFETIME
         await self._credentials.add_session(_digest(session_token), tutor.id, expires_at)
         return SignedIn(tutor, session_token, expires_at)
 

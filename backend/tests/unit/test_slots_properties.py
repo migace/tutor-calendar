@@ -215,3 +215,37 @@ def test_a_start_can_be_booked_exactly_when_the_listing_shows_it(
     for probe in probes:
         if window.contains(TimeRange(probe, probe + lesson)):
             assert slot_starting_at(schedule, probe) == listed.get(probe), probe
+
+
+@given(cases(), st.data())
+@thorough
+def test_any_busy_ranges_remove_exactly_the_slots_they_touch(
+    case: Case, data: st.DataObject
+) -> None:
+    """Busy ranges of any length, anywhere, overlapping each other or not.
+
+    The generator walks slots and busy ranges together for speed. This holds it
+    to the plain definition: a slot is offered unless some busy range overlaps it.
+    """
+    schedule, window = case
+    seconds = int(window.duration.total_seconds())
+    busy = [
+        TimeRange(
+            window.start + timedelta(seconds=offset),
+            window.start + timedelta(seconds=offset + length),
+        )
+        for offset, length in data.draw(
+            st.lists(
+                st.tuples(
+                    st.integers(min_value=-3600, max_value=seconds),
+                    st.integers(min_value=1, max_value=6 * 3600),
+                ),
+                max_size=12,
+            )
+        )
+    ]
+    grid = generate_slots(schedule, window)
+
+    remaining = generate_slots(schedule, window, busy)
+
+    assert remaining == [slot for slot in grid if not any(slot.overlaps(other) for other in busy)]
