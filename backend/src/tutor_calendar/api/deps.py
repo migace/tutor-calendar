@@ -5,6 +5,12 @@ from typing import Annotated, cast
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tutor_calendar.application.billing import (
+    ListAccounts,
+    RecordEntry,
+    ShareStatement,
+    ShowStatement,
+)
 from tutor_calendar.application.book_lesson import BookLesson
 from tutor_calendar.application.errors import NotSignedInError
 from tutor_calendar.application.lessons import ChangeOwnLesson, ManageBooking
@@ -13,8 +19,10 @@ from tutor_calendar.application.ports import (
     BookingRepository,
     Clock,
     CredentialStore,
+    Ledger,
     Mailer,
     ManageLinks,
+    StatementLinks,
     TutorRepository,
 )
 from tutor_calendar.application.series import EndSeries, ListSeries, StartSeries
@@ -59,7 +67,37 @@ def _links(request: Request) -> ManageLinks:
 
 
 def get_book_lesson(request: Request) -> BookLesson:
-    return BookLesson(_tutors(request), _bookings(request), _links(request), _clock(request))
+    return BookLesson(
+        _tutors(request),
+        _bookings(request),
+        _links(request),
+        _clock(request),
+        get_settings(request).public_url,
+    )
+
+
+def _ledger(request: Request) -> Ledger:
+    return cast(Ledger, request.app.state.ledger)
+
+
+def get_record_entry(request: Request) -> RecordEntry:
+    return RecordEntry(_ledger(request), _clock(request))
+
+
+def get_list_accounts(request: Request) -> ListAccounts:
+    return ListAccounts(_ledger(request), _bookings(request))
+
+
+def get_show_statement(request: Request) -> ShowStatement:
+    return ShowStatement(_ledger(request), _bookings(request), _clock(request))
+
+
+def get_share_statement(request: Request) -> ShareStatement:
+    return ShareStatement(
+        _tutors(request),
+        get_show_statement(request),
+        cast(StatementLinks, request.app.state.statement_links),
+    )
 
 
 def get_manage_booking(request: Request) -> ManageBooking:
@@ -128,6 +166,10 @@ ChangeOwnLessonDep = Annotated[ChangeOwnLesson, Depends(get_change_own_lesson)]
 StartSeriesDep = Annotated[StartSeries, Depends(get_start_series)]
 ListSeriesDep = Annotated[ListSeries, Depends(get_list_series)]
 EndSeriesDep = Annotated[EndSeries, Depends(get_end_series)]
+RecordEntryDep = Annotated[RecordEntry, Depends(get_record_entry)]
+ListAccountsDep = Annotated[ListAccounts, Depends(get_list_accounts)]
+ShowStatementDep = Annotated[ShowStatement, Depends(get_show_statement)]
+ShareStatementDep = Annotated[ShareStatement, Depends(get_share_statement)]
 RequestSignInLinkDep = Annotated[RequestSignInLink, Depends(get_request_sign_in_link)]
 SignInDep = Annotated[SignIn, Depends(get_sign_in)]
 SignOutDep = Annotated[SignOut, Depends(get_sign_out)]

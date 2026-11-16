@@ -71,6 +71,15 @@ class InvalidSeriesError(Exception):
     pass
 
 
+class InvalidEntryError(Exception):
+    """A ledger entry that makes no sense, or an id reused for a different entry."""
+
+
+class StatementNotFoundError(Exception):
+    def __init__(self) -> None:
+        super().__init__("no such statement")
+
+
 class SeriesNotFoundError(Exception):
     def __init__(self) -> None:
         super().__init__("no such series")

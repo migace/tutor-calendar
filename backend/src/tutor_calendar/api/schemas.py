@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field, StringConstraints, field_validator
 
+from tutor_calendar.domain.billing import MAX_MINUTES_PER_ENTRY, MAX_NOTE_LENGTH
 from tutor_calendar.domain.scheduling.booking import MAX_EMAIL_LENGTH, MAX_NAME_LENGTH
 from tutor_calendar.domain.scheduling.recurrence import MAX_OCCURRENCES
 
@@ -159,6 +160,48 @@ class WeekOut(BaseModel):
     previous: dt.date = Field(description="A date in the week before this one")
     next: dt.date = Field(description="A date in the week after this one")
     days: list[DayOut] = Field(description="Monday to Sunday")
+
+
+class AccountOut(BaseModel):
+    email: str
+    name: str | None = Field(description="From the student's latest booking, if they have one")
+    balance_minutes: int = Field(description="Lesson time paid for and unused; negative is owed")
+
+
+class EntryIn(BaseModel):
+    kind: Literal["purchase", "adjustment"]
+    minutes: int = Field(
+        ge=-MAX_MINUTES_PER_ENTRY,
+        le=MAX_MINUTES_PER_ENTRY,
+        description="Added to the balance. A purchase is positive; an adjustment may be negative.",
+    )
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_NOTE_LENGTH)] = ""
+
+
+class EntryOut(BaseModel):
+    id: UUID
+    kind: str = Field(description="purchase, lesson or adjustment")
+    minutes: int
+    note: str
+    at: AwareDatetime = Field(description="When it counts: for a lesson, the start of the lesson")
+    lesson_id: UUID | None
+
+
+class StatementOut(BaseModel):
+    tutor_name: str
+    timezone: str
+    student_email: str
+    student_name: str | None
+    month: dt.date = Field(description="First day of the month shown")
+    previous: dt.date
+    next: dt.date
+    opening_minutes: int = Field(description="Balance at the start of the month")
+    closing_minutes: int = Field(description="Balance at the end of the month")
+    balance_minutes: int = Field(description="Balance today")
+    entries: list[EntryOut]
+    share_token: str | None = Field(
+        description="For the tutor only: lets a parent open this student's statements"
+    )
 
 
 class ErrorOut(BaseModel):

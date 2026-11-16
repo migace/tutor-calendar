@@ -182,6 +182,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tutor's students and the lesson time each has left */
+        get: operations["list_accounts_api_v1_me_students_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/students/{email}/entries/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record time a student bought, or a correction
+         * @description Entries are permanent: a mistake is corrected by another entry. The client chooses the id, and sending the same entry again changes nothing.
+         */
+        put: operations["record_entry_api_v1_me_students__email__entries__entry_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/students/{email}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One month of a student's account */
+        get: operations["tutor_statement_api_v1_me_students__email__statement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/week": {
         parameters: {
             query?: never;
@@ -191,6 +245,26 @@ export interface paths {
         };
         /** One week of the tutor's lessons, Monday to Sunday */
         get: operations["week_api_v1_me_week_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The statement a shared link belongs to
+         * @description For parents: shows one student's account with one tutor and nothing else.
+         */
+        get: operations["shared_statement_api_v1_statement_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -271,6 +345,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountOut */
+        AccountOut: {
+            /**
+             * Balance Minutes
+             * @description Lesson time paid for and unused; negative is owed
+             */
+            balance_minutes: number;
+            /** Email */
+            email: string;
+            /**
+             * Name
+             * @description From the student's latest booking, if they have one
+             */
+            name: string | null;
+        };
         /** AvailabilityIn */
         AvailabilityIn: {
             /** Rules */
@@ -333,6 +422,49 @@ export interface components {
             date: string;
             /** Lessons */
             lessons: components["schemas"]["LessonOut"][];
+        };
+        /** EntryIn */
+        EntryIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "purchase" | "adjustment";
+            /**
+             * Minutes
+             * @description Added to the balance. A purchase is positive; an adjustment may be negative.
+             */
+            minutes: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** EntryOut */
+        EntryOut: {
+            /**
+             * At
+             * Format: date-time
+             * @description When it counts: for a lesson, the start of the lesson
+             */
+            at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @description purchase, lesson or adjustment
+             */
+            kind: string;
+            /** Lesson Id */
+            lesson_id: string | null;
+            /** Minutes */
+            minutes: number;
+            /** Note */
+            note: string;
         };
         /** ErrorOut */
         ErrorOut: {
@@ -539,6 +671,55 @@ export interface components {
             /** Slots */
             slots: components["schemas"]["SlotOut"][];
             tutor: components["schemas"]["TutorOut"];
+        };
+        /** StatementOut */
+        StatementOut: {
+            /**
+             * Balance Minutes
+             * @description Balance today
+             */
+            balance_minutes: number;
+            /**
+             * Closing Minutes
+             * @description Balance at the end of the month
+             */
+            closing_minutes: number;
+            /** Entries */
+            entries: components["schemas"]["EntryOut"][];
+            /**
+             * Month
+             * Format: date
+             * @description First day of the month shown
+             */
+            month: string;
+            /**
+             * Next
+             * Format: date
+             */
+            next: string;
+            /**
+             * Opening Minutes
+             * @description Balance at the start of the month
+             */
+            opening_minutes: number;
+            /**
+             * Previous
+             * Format: date
+             */
+            previous: string;
+            /**
+             * Share Token
+             * @description For the tutor only: lets a parent open this student's statements
+             */
+            share_token: string | null;
+            /** Student Email */
+            student_email: string;
+            /** Student Name */
+            student_name: string | null;
+            /** Timezone */
+            timezone: string;
+            /** Tutor Name */
+            tutor_name: string;
         };
         /** TutorOut */
         TutorOut: {
@@ -1162,6 +1343,139 @@ export interface operations {
             };
         };
     };
+    list_accounts_api_v1_me_students_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"][];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_entry_api_v1_me_students__email__entries__entry_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                email: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description The entry makes no sense, or the id means another entry */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tutor_statement_api_v1_me_students__email__statement_get: {
+        parameters: {
+            query?: {
+                /** @description Any day of the month to show; defaults to the current month */
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                email: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description This tutor has no such student */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     week_api_v1_me_week_get: {
         parameters: {
             query?: {
@@ -1184,6 +1498,47 @@ export interface operations {
                 };
             };
             /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shared_statement_api_v1_statement_get: {
+        parameters: {
+            query?: {
+                /** @description Any day of the month to show; defaults to the current month */
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementOut"];
+                };
+            };
+            /** @description The token is missing or not valid */
             401: {
                 headers: {
                     [name: string]: unknown;

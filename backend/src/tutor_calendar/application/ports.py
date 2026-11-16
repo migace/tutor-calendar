@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 from uuid import UUID
 
+from tutor_calendar.domain.billing import LedgerEntry
 from tutor_calendar.domain.scheduling import (
     Booking,
     LessonSeries,
@@ -87,7 +88,9 @@ class BookingRepository(Protocol):
 
     async def get_by_idempotency_key(self, tutor_id: UUID, key: str) -> Booking | None: ...
 
-    async def add(self, booking: Booking, idempotency_key: str) -> Booking:
+    async def add(
+        self, booking: Booking, idempotency_key: str, confirmation: Email | None = None
+    ) -> Booking:
         """Store ``booking`` unless that would break one of two guarantees.
 
         * A tutor's bookings never overlap. If ``booking`` overlaps one that is
@@ -98,6 +101,38 @@ class BookingRepository(Protocol):
 
         Both hold when several calls run at the same time, which is the whole
         point: the implementation, not the caller, has to make them atomic.
+
+        ``confirmation`` is queued for sending as part of the same change: it
+        is queued if and only if the booking is stored. See ADR 0007.
+        """
+        ...
+
+    async def students(self, tutor_id: UUID) -> dict[str, str]:
+        """Everyone who has had a lesson with the tutor: account key to latest name."""
+        ...
+
+    async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
+        """Lessons whose cost is final (see ``is_settled``) and not yet marked as settled."""
+        ...
+
+    async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None: ...
+
+    async def due_for_reminder(self, now: datetime, lead: timedelta, limit: int) -> list[Booking]:
+        """Confirmed lessons starting within ``lead`` that have had no reminder.
+
+        Lessons booked less than ``lead`` before they start are left out: the
+        confirmation they just received is reminder enough.
+        """
+        ...
+
+    async def record_reminders(
+        self, reminders: Sequence[tuple[Booking, Email]], now: datetime
+    ) -> int:
+        """Queue each reminder and mark its lesson as reminded, as one change.
+
+        A lesson that was reminded or changed in the meantime is skipped, so a
+        lesson gets one reminder however many workers run. Returns how many
+        were queued.
         """
         ...
 
@@ -148,4 +183,58 @@ class ManageLinks(Protocol):
 
     def booking_id_in(self, token: str) -> UUID | None:
         """The booking a token was issued for, or None if it was not issued by us."""
+        ...
+
+
+class StatementLinks(Protocol):
+    """Unforgeable tokens that let a parent read one student's statement."""
+
+    def token_for(self, tutor_id: UUID, account: str) -> str: ...
+
+    def account_in(self, token: str) -> tuple[UUID, str] | None:
+        """The tutor and account a token was issued for, or None if we did not issue it."""
+        ...
+
+
+class Ledger(Protocol):
+    """An append-only record of lesson time bought and used. See ADR 0007."""
+
+    async def post(self, entries: Sequence[LedgerEntry]) -> int:
+        """Add entries and return how many were new.
+
+        An entry whose id is already recorded, or that charges a lesson already
+        charged, is skipped. Posting the same thing twice is therefore harmless.
+        """
+        ...
+
+    async def entries(self, tutor_id: UUID, account: str) -> list[LedgerEntry]:
+        """One account's whole history, in the order it took effect."""
+        ...
+
+    async def balances(self, tutor_id: UUID) -> dict[str, int]:
+        """Minutes left on each of the tutor's accounts that has any entry."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class Delivery:
+    sent: int
+    failed: int
+
+
+class Outbox(Protocol):
+    """E-mail waiting to be sent. See ADR 0007."""
+
+    async def add(self, email: Email, now: datetime) -> None: ...
+
+    async def deliver_due(
+        self, now: datetime, send: Callable[[Email], Awaitable[None]], limit: int
+    ) -> Delivery:
+        """Hand each waiting message to ``send`` and record how it went.
+
+        A message whose send raises stays queued and is tried again later, with
+        a growing pause. Two workers never take the same message at once. A
+        message can be sent twice if a worker dies after sending and before
+        recording it: delivery is at least once, not exactly once.
+        """
         ...

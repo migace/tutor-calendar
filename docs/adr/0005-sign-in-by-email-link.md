@@ -84,8 +84,8 @@ answer for a foreign origin.
 - Whoever controls the mailbox controls the account. That is true of password
   reset as well; here it is explicit.
 - Each request to the panel costs one indexed lookup of the session.
-- **E-mail is not delivered yet.** The message is written to the application
-  log, which is enough for development. Real delivery arrives with the
-  transactional outbox, and until then this cannot be used on a public host.
+- Sign-in messages are queued in the outbox and sent by the worker (ADR 0007).
+  With no mail server configured the worker writes them to its log, which is
+  enough for development.
 - Not implemented yet, and needed before that: a limit on how many links can be
   requested for one address, and removal of expired tokens and sessions.

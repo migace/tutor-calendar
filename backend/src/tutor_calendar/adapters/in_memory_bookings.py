@@ -9,17 +9,25 @@ event loop each method is atomic without a lock.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from uuid import UUID
 
+from tutor_calendar.adapters.in_memory_billing import InMemoryOutbox
 from tutor_calendar.application.errors import SeriesConflictError, SlotTakenError
-from tutor_calendar.domain.scheduling import Booking, LessonSeries, TimeRange
+from tutor_calendar.application.ports import Email
+from tutor_calendar.domain.billing import account_key, is_settled
+from tutor_calendar.domain.scheduling import Booking, LessonSeries, LessonStatus, TimeRange
 
 
 class InMemoryBookingRepository:
-    def __init__(self) -> None:
+    def __init__(self, outbox: InMemoryOutbox | None = None) -> None:
         self._bookings: dict[UUID, Booking] = {}
         self._by_key: dict[tuple[UUID, str], UUID] = {}
         self._series: dict[UUID, LessonSeries] = {}
+        self._settled: set[UUID] = set()
+        self._reminded: set[UUID] = set()
+        # Where confirmations and reminders are queued. Shared with whoever delivers them.
+        self.outbox = outbox or InMemoryOutbox()
 
     async def busy_between(self, tutor_id: UUID, window: TimeRange) -> list[TimeRange]:
         return sorted(
@@ -46,14 +54,64 @@ class InMemoryBookingRepository:
     async def get_by_idempotency_key(self, tutor_id: UUID, key: str) -> Booking | None:
         return self._with_key(tutor_id, key)
 
-    async def add(self, booking: Booking, idempotency_key: str) -> Booking:
+    async def add(
+        self, booking: Booking, idempotency_key: str, confirmation: Email | None = None
+    ) -> Booking:
         earlier = self._with_key(booking.tutor_id, idempotency_key)
         if earlier is not None:
             return earlier
         if self._is_taken(booking):
             raise SlotTakenError
         self._store(booking, idempotency_key)
+        if confirmation is not None:
+            self.outbox.put(confirmation, booking.created_at)
         return booking
+
+    async def students(self, tutor_id: UUID) -> dict[str, str]:
+        latest: dict[str, str] = {}
+        for booking in sorted(self._bookings.values(), key=lambda each: each.created_at):
+            if booking.tutor_id == tutor_id:
+                latest[account_key(booking.student.email)] = booking.student.name
+        return latest
+
+    async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
+        waiting = [
+            booking
+            for booking in self._bookings.values()
+            if booking.id not in self._settled and is_settled(booking, now)
+        ]
+        return sorted(waiting, key=lambda booking: booking.slot.start)[:limit]
+
+    async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None:
+        self._settled.update(booking_ids)
+
+    async def due_for_reminder(self, now: datetime, lead: timedelta, limit: int) -> list[Booking]:
+        due = [
+            booking
+            for booking in self._bookings.values()
+            if booking.id not in self._reminded
+            and booking.status is LessonStatus.CONFIRMED
+            and now < booking.slot.start <= now + lead
+            and booking.created_at <= booking.slot.start - lead
+        ]
+        return sorted(due, key=lambda booking: booking.slot.start)[:limit]
+
+    async def record_reminders(
+        self, reminders: Sequence[tuple[Booking, Email]], now: datetime
+    ) -> int:
+        queued = 0
+        for booking, email in reminders:
+            stored = self._bookings.get(booking.id)
+            if (
+                stored is None
+                or stored.status is not LessonStatus.CONFIRMED
+                or booking.id in self._reminded
+            ):
+                continue
+            self._reminded.add(booking.id)
+            self.outbox.put(email, now)
+            queued += 1
+        return queued
 
     async def apply(self, changes: Sequence[tuple[Booking, Booking]]) -> int:
         applied = 0

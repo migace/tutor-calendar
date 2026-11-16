@@ -36,3 +36,15 @@ export function formatMoment(instant: string, timeZone: string): string {
     minute: "2-digit",
   }).format(new Date(instant));
 }
+
+/**
+ * Lesson time for people: "10 h", "1 h 30 min", "45 min", and "−1 h" for time owed.
+ * The minus is the typographic one, which screen readers announce as "minus".
+ */
+export function formatMinutes(minutes: number): string {
+  const total = Math.abs(minutes);
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  const parts = [hours > 0 && `${hours} h`, (rest > 0 || hours === 0) && `${rest} min`];
+  return `${minutes < 0 ? "−" : ""}${parts.filter(Boolean).join(" ")}`;
+}

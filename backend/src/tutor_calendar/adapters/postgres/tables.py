@@ -114,6 +114,10 @@ bookings = Table(
     Column("cancelled_at", DateTime(timezone=True), nullable=True),
     Column("cancelled_late", Boolean, nullable=True),
     Column("series_id", Uuid, ForeignKey("lesson_series.id", ondelete="RESTRICT"), nullable=True),
+    # When the lesson's cost became final and was passed to the ledger, and
+    # when its reminder was queued. Both are set once. See ADR 0007.
+    Column("settled_at", DateTime(timezone=True), nullable=True),
+    Column("reminded_at", DateTime(timezone=True), nullable=True),
     Index("bookings_series_id_idx", "series_id"),
     CheckConstraint(
         "status IN ('confirmed', 'cancelled', 'no_show')", name="bookings_status_valid"
@@ -160,3 +164,57 @@ sessions = Table(
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
 )
+
+Index(
+    "bookings_awaiting_settlement_idx",
+    func.upper(bookings.c.during),
+    postgresql_where=bookings.c.settled_at.is_(None),
+)
+
+# Entries are only ever added. A trigger in migration 0005 rejects UPDATE and
+# DELETE, so that holds for every writer, not just this code.
+ledger_entries = Table(
+    "ledger_entries",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("tutor_id", Uuid, ForeignKey("tutors.id", ondelete="RESTRICT"), nullable=False),
+    Column("account", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("minutes", Integer, nullable=False),
+    Column("note", Text, nullable=False),
+    # One charge per lesson, whoever tries to add it and however often.
+    Column(
+        "booking_id",
+        Uuid,
+        ForeignKey("bookings.id", ondelete="RESTRICT"),
+        nullable=True,
+        unique=True,
+    ),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("effective_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "kind IN ('purchase', 'lesson', 'adjustment')", name="ledger_entries_kind_valid"
+    ),
+    CheckConstraint("minutes <> 0", name="ledger_entries_minutes_not_zero"),
+    CheckConstraint("account = lower(account)", name="ledger_entries_account_is_lower_case"),
+    CheckConstraint(
+        "(kind = 'lesson') = (booking_id IS NOT NULL)",
+        name="ledger_entries_charge_names_its_lesson",
+    ),
+    Index("ledger_entries_account_idx", "tutor_id", "account"),
+)
+
+outbox = Table(
+    "outbox",
+    metadata,
+    Column("id", Uuid, primary_key=True, server_default=text("gen_random_uuid()")),
+    Column("recipient", Text, nullable=False),
+    Column("subject", Text, nullable=False),
+    Column("body", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("available_at", DateTime(timezone=True), nullable=False),
+    Column("attempts", Integer, nullable=False, server_default=text("0")),
+    Column("last_error", Text, nullable=True),
+    Column("sent_at", DateTime(timezone=True), nullable=True),
+)
+Index("outbox_waiting_idx", outbox.c.available_at, postgresql_where=outbox.c.sent_at.is_(None))
