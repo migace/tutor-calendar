@@ -1,0 +1,100 @@
+# A public demonstration on one small server. See docs/deployment.md.
+#
+#   cp demo.env.example .env      then fill it in
+#   docker compose -f docker-compose.demo.yml up -d --build
+#
+# Differences from docker-compose.yml, which is for development:
+#   - the database is reachable only by the other containers
+#   - secrets and the public address come from .env, and starting without them fails
+#   - no mail server: on a public demo nothing may leave the machine
+#   - sample data is put back every night
+#   - everything restarts with the machine, and logs are capped
+name: tutor-calendar-demo
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+x-app-environment: &app-environment
+  TC_DATABASE_URL: postgresql+asyncpg://tutor:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/tutor_calendar
+  # The same key in every process, or links made by one could not be opened by another.
+  TC_SECRET_KEY: ${TC_SECRET_KEY:?set TC_SECRET_KEY in .env}
+  TC_PUBLIC_URL: ${TC_PUBLIC_URL:?set TC_PUBLIC_URL in .env}
+  TC_DEMO_MODE: "true"
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tutor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: tutor_calendar
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutor -d tutor_calendar"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *logging
+
+  web:
+    build: .
+    restart: unless-stopped
+    environment: *app-environment
+    ports:
+      # Published on IPv4 and IPv6. The TLS-terminating proxy in front connects to this port.
+      - "${DEMO_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    logging: *logging
+
+  # No TC_SMTP_HOST, so the worker writes each message to its log instead of sending it.
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "tutor_calendar.worker"]
+    environment: *app-environment
+    depends_on:
+      # The web process runs the migrations; the worker needs the tables they create.
+      web:
+        condition: service_healthy
+    logging: *logging
+
+  # Visitors book lessons and change the tutor's hours. Every night at 03:00 UTC
+  # this wipes what they did and seeds the sample data again.
+  reset:
+    build: .
+    restart: unless-stopped
+    # Without an init process the shell would be PID 1 and ignore the signal to stop.
+    init: true
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          # Seconds until the next 03:00 UTC: between 1 and 86400.
+          sleep $$(( (3 * 3600 - $$(date -u +%s) % 86400 + 86399) % 86400 + 1 ))
+          python -m tutor_calendar.demo --reset
+        done
+    environment: *app-environment
+    depends_on:
+      web:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  db-data:

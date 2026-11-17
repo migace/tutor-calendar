@@ -71,6 +71,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t tutor-calendar .
+      - name: The demo Compose file is valid
+        run: docker compose -f docker-compose.demo.yml --env-file demo.env.example config --quiet
+        env:
+          # The example file leaves the two secrets empty on purpose.
+          TC_SECRET_KEY: not-a-secret-only-for-validating-the-file
+          POSTGRES_PASSWORD: notasecret
 
   api-contract:
     name: Generated API types are up to date

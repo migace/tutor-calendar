@@ -61,6 +61,46 @@ Without `TC_SMTP_HOST` nothing leaves the server.
 **Never turn demo mode on for an installation with real students.** It lets
 anyone into the demo tutor's panel, and makes `--reset` available.
 
+### On one small server
+
+`docker-compose.demo.yml` is everything above put together for a single machine
+with Docker: the database, the web process, the worker without a mail server,
+and a fourth container that runs the reset every night at 03:00 UTC.
+
+On the server:
+
+```bash
+git clone https://github.com/migace/tutor-calendar.git
+cd tutor-calendar
+cp demo.env.example .env
+```
+
+Fill in `.env` as its comments say: the public address, a signing key and a
+database password. Compose refuses to start while any of the three is missing.
+Then:
+
+```bash
+docker compose -f docker-compose.demo.yml up -d --build --wait
+```
+
+To put a newer version up, `git pull` and run the same command again. The
+database lives in a Docker volume and is kept.
+
+What it expects from the machine:
+
+- **Something in front that terminates TLS** and passes requests to `DEMO_PORT`
+  as plain HTTP. The session cookie is marked `Secure`, so signing in works only
+  when the visitor's side of the connection is HTTPS.
+- **The port is published on IPv4 and IPv6.** Some budget hosts reach the
+  machine only over IPv6, and an application that listens on `0.0.0.0` alone is
+  invisible to them.
+- **About 150 MB of memory** when idle, measured on the four containers
+  together. Building the image needs far more for a few minutes, mostly for the
+  web app.
+
+Nothing backs the database up, which is fine for sample data and for nothing
+else, and the lack of a request limit described below applies in full.
+
 ## Before using it for real
 
 These are known and not built:
