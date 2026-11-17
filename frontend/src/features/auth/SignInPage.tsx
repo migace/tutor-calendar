@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent } from "react";
 import { Navigate } from "react-router";
 
-import { fetchConfig, openDemoSession, requestSignInLink } from "../../api/client";
+import {
+  fetchConfig,
+  isTooManyRequests,
+  openDemoSession,
+  requestSignInLink,
+} from "../../api/client";
 import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton, TextField } from "../../ui";
 import { PROFILE_KEY, useProfile } from "./useProfile";
@@ -88,7 +93,7 @@ export function SignInPage() {
           <p>{all.demo.enterIntro}</p>
           {demo.isError && (
             <p className="form__error" role="alert">
-              {all.demo.enterFailed}
+              {isTooManyRequests(demo.error) ? all.common.tooManyRequests : all.demo.enterFailed}
             </p>
           )}
           <Button busy={demo.isPending} onClick={() => demo.mutate()}>
@@ -113,7 +118,7 @@ export function SignInPage() {
         />
         {request.isError && (
           <p className="form__error" role="alert">
-            {t.sendFailed}
+            {isTooManyRequests(request.error) ? all.common.tooManyRequests : t.sendFailed}
           </p>
         )}
         <Button type="submit" wide variant={demoMode ? "secondary" : "primary"} busy={request.isPending}>

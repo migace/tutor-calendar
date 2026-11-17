@@ -5,7 +5,7 @@ import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -16,6 +16,7 @@ from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOut
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.credentials import PostgresCredentialStore
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
+from tutor_calendar.api.rate_limit import ANY_REQUEST, Limited, RateLimiter
 from tutor_calendar.api.routes import (
     auth,
     billing,
@@ -26,7 +27,8 @@ from tutor_calendar.api.routes import (
     slots,
 )
 from tutor_calendar.api.routes import bookings as booking_routes
-from tutor_calendar.api.web_app import SecurityHeaders, WebApp
+from tutor_calendar.api.schemas import ErrorOut
+from tutor_calendar.api.web_app import HttpsRedirect, SecurityHeaders, WebApp
 from tutor_calendar.application.ports import (
     BookingRepository,
     Clock,
@@ -106,18 +108,38 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Kept in this process: there is one of it. See ADR 0009.
+    app.state.rate_limiter = RateLimiter() if settings.rate_limits else None
+    api = APIRouter(
+        prefix="/api/v1",
+        dependencies=[Depends(Limited(ANY_REQUEST))],
+        responses={
+            429: {
+                "model": ErrorOut,
+                "description": (
+                    "Too many requests from this address. `Retry-After` says how many "
+                    "seconds to wait."
+                ),
+            }
+        },
+    )
+    api.include_router(health.public)
+    api.include_router(slots.router)
+    api.include_router(booking_routes.router)
+    api.include_router(auth.router)
+    api.include_router(managed_booking.router)
+    api.include_router(panel.router)
+    api.include_router(series.router)
+    api.include_router(billing.panel)
+    api.include_router(billing.shared)
+    # The health checks stay outside: whatever watches the process must never be told to wait.
     app.include_router(health.router)
-    app.include_router(health.public, prefix="/api/v1")
-    app.include_router(slots.router, prefix="/api/v1")
-    app.include_router(booking_routes.router, prefix="/api/v1")
-    app.include_router(auth.router, prefix="/api/v1")
-    app.include_router(managed_booking.router, prefix="/api/v1")
-    app.include_router(panel.router, prefix="/api/v1")
-    app.include_router(series.router, prefix="/api/v1")
-    app.include_router(billing.panel, prefix="/api/v1")
-    app.include_router(billing.shared, prefix="/api/v1")
+    app.include_router(api)
 
     app.add_middleware(SecurityHeaders)
+    if settings.public_url.startswith("https://"):
+        # Outermost, so that nothing is answered over plain HTTP first.
+        app.add_middleware(HttpsRedirect)
     if settings.static_dir is not None:
         # Last, so that it only sees what no API route claimed.
         app.mount("/", WebApp(settings.static_dir), name="web")

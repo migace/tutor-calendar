@@ -14,6 +14,7 @@ export const en = {
     skipToContent: "Skip to content",
     siteName: "Tutor Calendar",
     noKeepIt: "No, keep it",
+    tooManyRequests: "Too many attempts from your network. Wait a few minutes and try again.",
   },
 
   demo: {

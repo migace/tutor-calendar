@@ -100,6 +100,23 @@ describe("signing in", () => {
     ]);
   });
 
+  it("says to wait, not to try again, when the server's request limit is reached", async () => {
+    const api = mockApi({
+      "GET /api/v1/me": signedOut,
+      "POST /api/v1/auth/links": () => json(429, { detail: "too many requests, try again later" }),
+    });
+    const user = renderApp("/sign-in");
+
+    await user.type(await screen.findByLabelText("Email address"), "demo@example.com");
+    await user.click(screen.getByRole("button", { name: "Email me a sign-in link" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Too many attempts from your network. Wait a few minutes and try again.",
+    );
+    // Asked once: repeating a refused request would only use up more of the allowance.
+    expect(api.callsTo("POST /api/v1/auth/links")).toHaveLength(1);
+  });
+
   it("catches a mistyped address before sending anything", async () => {
     const api = mockApi({ "GET /api/v1/me": signedOut });
     const user = renderApp("/sign-in");

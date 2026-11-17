@@ -37,6 +37,11 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's request limit was reached. Trying again at once only repeats the answer. */
+export function isTooManyRequests(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 429;
+}
+
 function tutorUrl(slug: string, resource: string): string {
   return `/api/v1/tutors/${encodeURIComponent(slug)}/${resource}`;
 }

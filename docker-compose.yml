@@ -29,6 +29,8 @@ services:
       TC_PUBLIC_URL: http://localhost:8000
       # Sample students and lessons, and a button to enter the tutor's panel.
       TC_DEMO_MODE: "true"
+      # The load test turns the request limits off; see docs/load-test.md.
+      TC_RATE_LIMITS: ${TC_RATE_LIMITS:-true}
     ports:
       - "8000:8000"
     depends_on:

@@ -178,6 +178,20 @@ describe("BookingPage", () => {
     expect(screen.getByText("Pick a time to continue.")).toBeInTheDocument();
   });
 
+  it("says to wait when the server's request limit is reached, and does not ask again", async () => {
+    const limited = () => json(429, { detail: "too many requests, try again later" });
+    const { posts } = mockApi([[TUESDAY_3PM]], [limited]);
+    const user = renderPage();
+
+    await pickTime(user, "Tuesday 17 November, 15:00");
+    await fillIn(user, "Anna Nowak", "anna@example.com");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Too many attempts from your network. Wait a few minutes and try again.",
+    );
+    expect(posts).toHaveLength(1);
+  });
+
   it("points out missing details without sending anything", async () => {
     const { posts } = mockApi([[TUESDAY_3PM]]);
     const user = renderPage();

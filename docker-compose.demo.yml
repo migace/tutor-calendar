@@ -23,6 +23,8 @@ x-app-environment: &app-environment
   TC_SECRET_KEY: ${TC_SECRET_KEY:?set TC_SECRET_KEY in .env}
   TC_PUBLIC_URL: ${TC_PUBLIC_URL:?set TC_PUBLIC_URL in .env}
   TC_DEMO_MODE: "true"
+  # Empty means: tell visitors apart by the address of the connection.
+  TC_CLIENT_ADDRESS_HEADER: ${CLIENT_ADDRESS_HEADER:-}
 
 services:
   db:

@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from starlette.datastructures import URL, Headers
 from starlette.exceptions import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
-from starlette.types import Scope
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 # What a page from this origin may load and do. Everything comes from the
 # origin itself: no inline scripts, no third parties, and no framing by others.
@@ -37,9 +38,49 @@ SECURITY_HEADERS = {
 }
 
 
+# For a year the browser goes straight to HTTPS without asking over HTTP first.
+STRICT_TRANSPORT_SECURITY = "max-age=31536000"
+
+
+def _arrived_over(headers: Headers) -> str | None:
+    """How the visitor reached the proxy in front: "http", "https", or None without one.
+
+    TLS ends at that proxy, so this process only ever sees plain HTTP and has
+    to be told. A request without the header did not come through the proxy:
+    it is a health check from inside.
+    """
+    stated = headers.get("x-forwarded-proto")
+    if stated is None:
+        return None
+    # In a list, the first entry is the hop the visitor made.
+    return stated.split(",", 1)[0].strip().lower()
+
+
+class HttpsRedirect:
+    """Sends a visitor who came over plain HTTP to the same address over HTTPS.
+
+    Used when the public address is an HTTPS one. Without it the page loads
+    over HTTP and then fails where it matters: the session cookie is marked
+    Secure, so signing in appears to do nothing.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and _arrived_over(Headers(scope=scope)) == "http":
+            # 308 keeps the method and the body, so a POST is repeated as a POST.
+            redirect = RedirectResponse(URL(scope=scope).replace(scheme="https"), status_code=308)
+            await redirect(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+
 class SecurityHeaders(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
+        if _arrived_over(request.headers) == "https":
+            response.headers.setdefault("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY)
         # The interactive API documentation loads its scripts from a CDN and
         # would be blocked by the policy. It is a developer tool, left as it is.
         if request.url.path not in {"/docs", "/redoc"}:

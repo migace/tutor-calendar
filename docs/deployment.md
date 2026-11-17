@@ -29,10 +29,28 @@ Everything is set through environment variables.
 | `TC_SMTP_HOST`, `TC_SMTP_PORT`, `TC_SMTP_USERNAME`, `TC_SMTP_PASSWORD`, `TC_SMTP_STARTTLS`, `TC_MAIL_FROM` | for real mail | Without a host, the worker writes each message to its log instead of sending it. |
 | `TC_DEMO_MODE` | no | `true` for a public demonstration. See below. |
 | `TC_COOKIE_SECURE` | no | Leave at its default of `true`. The site must be served over HTTPS. |
+| `TC_CLIENT_ADDRESS_HEADER` | behind a proxy | The header in which the proxy writes the visitor's address, such as `CF-Connecting-IP` or `X-Real-IP`. The request limits tell visitors apart by it. Without it everyone behind the proxy shares one allowance. See below. |
+| `TC_RATE_LIMITS` | no | `false` turns the request limits off. Only for a load test. |
 | `WEB_CONCURRENCY` | no | Number of API processes in the web container. |
 
 `TC_STATIC_DIR` is already set inside the image, and `TC_CORS_ORIGINS` is only
 for development, when the web app runs on a different port from the API.
+
+## Behind a proxy
+
+The application expects something in front of it that ends TLS and passes
+requests on as plain HTTP. Three things depend on what that proxy says:
+
+- **Plain HTTP is redirected to HTTPS** when `TC_PUBLIC_URL` is an `https://`
+  address and the proxy sends `X-Forwarded-Proto: http`. A request without the
+  header, such as a health check from inside, is answered as it is.
+- **`Strict-Transport-Security` is sent** to visitors who arrived over HTTPS.
+- **The request limits count visitors by address**
+  ([ADR 0009](adr/0009-request-limits-in-the-process.md)). The address of the
+  connection is the proxy's, so name the header the proxy puts the real one in
+  with `TC_CLIENT_ADDRESS_HEADER`. Do this only when the application's port
+  cannot be reached except through the proxy. Anyone who can reach it directly
+  can write that header themselves and be a new visitor with every request.
 
 ## A public demonstration
 
@@ -89,8 +107,9 @@ database lives in a Docker volume and is kept.
 What it expects from the machine:
 
 - **Something in front that terminates TLS** and passes requests to `DEMO_PORT`
-  as plain HTTP. The session cookie is marked `Secure`, so signing in works only
-  when the visitor's side of the connection is HTTPS.
+  as plain HTTP, with `X-Forwarded-Proto` saying how the visitor arrived. The
+  session cookie is marked `Secure`, so signing in works only over HTTPS, and
+  visitors who come over plain HTTP are redirected.
 - **The port is published on IPv4 and IPv6.** Some budget hosts reach the
   machine only over IPv6, and an application that listens on `0.0.0.0` alone is
   invisible to them.
@@ -99,14 +118,18 @@ What it expects from the machine:
   web app.
 
 Nothing backs the database up, which is fine for sample data and for nothing
-else, and the lack of a request limit described below applies in full.
+else. The request limits are on, and on a host whose port can be reached
+without going through the proxy they can be walked around, as described below.
 
 ## Before using it for real
 
 These are known and not built:
 
-- **No limit on requests.** Nothing stops someone from asking for sign-in links
-  or making bookings in a loop. Put a rate limit in front of the application.
+- **The request limits trust a header.** They hold only when the application
+  cannot be reached except through the proxy that writes it, so keep the port
+  closed to everyone else. Nothing bounds the sign-in links sent to one address
+  from many visitors. A limit in the proxy as well costs nothing and stops a
+  flood before it reaches the application.
 - **Sent messages, used sign-in tokens and expired sessions are never removed.**
   The tables only grow.
 - **There is no way to create a tutor** other than the demo one, short of

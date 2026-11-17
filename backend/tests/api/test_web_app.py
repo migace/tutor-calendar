@@ -31,9 +31,11 @@ def built(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def client_for(static_dir: Path | None) -> Iterator[TestClient]:
+def client_for(
+    static_dir: Path | None, public_url: str = "http://localhost:5173"
+) -> Iterator[TestClient]:
     app = create_app(
-        Settings(static_dir=static_dir),
+        Settings(static_dir=static_dir, public_url=public_url),
         clock=FixedClock(NOW),
         tutors=InMemoryTutorRepository([demo_tutor()]),
         bookings=InMemoryBookingRepository(),
@@ -106,3 +108,59 @@ def test_every_answer_carries_the_security_headers(web: TestClient, path: str) -
 def test_the_api_documentation_still_works(web: TestClient) -> None:
     # It loads scripts from a CDN, which the policy would block.
     assert "content-security-policy" not in web.get("/docs").headers
+
+
+# Behind a proxy that ends TLS, at an HTTPS address
+
+
+@pytest.fixture
+def public(built: Path) -> Iterator[TestClient]:
+    yield from client_for(built, public_url="https://calendar.example.com")
+
+
+def test_a_visitor_who_came_over_plain_http_is_sent_to_https(public: TestClient) -> None:
+    response = public.get(
+        "http://calendar.example.com/book/demo?week=2",
+        headers={"X-Forwarded-Proto": "http"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "https://calendar.example.com/book/demo?week=2"
+
+
+def test_a_request_to_the_api_over_plain_http_is_not_answered_either(public: TestClient) -> None:
+    response = public.post(
+        "http://calendar.example.com/api/v1/auth/demo-session",
+        headers={"X-Forwarded-Proto": "http"},
+        follow_redirects=False,
+    )
+
+    # 308 and not 301: the browser repeats the POST instead of turning it into a GET.
+    assert response.status_code == 308
+    assert "set-cookie" not in response.headers
+
+
+def test_a_visitor_over_https_is_answered_and_told_to_stay_on_it(public: TestClient) -> None:
+    response = public.get("/book/demo", headers={"X-Forwarded-Proto": "https"})
+
+    assert response.status_code == 200
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_a_health_check_from_inside_is_answered_over_plain_http(public: TestClient) -> None:
+    # It does not come through the proxy, so nothing says how it arrived.
+    response = public.get("http://localhost:8000/health", follow_redirects=False)
+
+    assert response.status_code == 200
+    assert "strict-transport-security" not in response.headers
+
+
+def test_plain_http_is_served_when_the_public_address_is_plain_http(web: TestClient) -> None:
+    response = web.get(
+        "http://localhost:8000/book/demo",
+        headers={"X-Forwarded-Proto": "http"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
 from tutor_calendar.api.deps import BookLessonDep
+from tutor_calendar.api.rate_limit import BOOKINGS, Limited
 from tutor_calendar.api.schemas import BookingIn, BookingOut, ErrorOut
 from tutor_calendar.application.errors import (
     IdempotencyKeyReusedError,
@@ -35,6 +36,7 @@ IdempotencyKey = Annotated[
     "/tutors/{slug}/bookings",
     status_code=status.HTTP_201_CREATED,
     summary="Book one lesson with a tutor",
+    dependencies=[Depends(Limited(BOOKINGS))],
     responses={
         201: {
             "headers": {

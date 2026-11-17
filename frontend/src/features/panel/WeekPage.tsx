@@ -106,11 +106,11 @@ export function WeekPage() {
               aria-current={isToday ? "date" : undefined}
             >
               <h2 className="week__heading" id={headingId}>
-                {formatDay(day.date, { weekday: "long" })}{" "}
+                <span className="week__weekday">{formatDay(day.date, { weekday: "long" })}</span>{" "}
                 <span className="week__date">
                   {formatDay(day.date, { day: "numeric", month: "short" })}
-                </span>
-                {isToday && <span className="week__today"> {t.today}</span>}
+                </span>{" "}
+                {isToday && <span className="week__today">{t.today}</span>}
               </h2>
               {day.lessons.length === 0 ? (
                 <p className="week__empty">{t.noLessons}</p>
@@ -118,7 +118,8 @@ export function WeekPage() {
                 <ul className="week__lessons">
                   {day.lessons.map((lesson) => {
                     const status = describeStatus(lesson, t);
-                    const labelId = `lesson-${lesson.id}`;
+                    const timeId = `lesson-${lesson.id}-time`;
+                    const studentId = `lesson-${lesson.id}-student`;
                     // The server decides what is allowed; this only avoids
                     // offering a button that is certain to be refused.
                     const upcoming = new Date(lesson.start) > new Date();
@@ -127,22 +128,30 @@ export function WeekPage() {
                         key={lesson.id}
                         className={`lesson${lesson.status === "cancelled" ? " lesson--off" : ""}`}
                       >
-                        <span id={labelId}>
-                          <span className="lesson__time">{formatHours(lesson, week.timezone)}</span>{" "}
-                          <span className="lesson__student">{lesson.student_name}</span>
+                        <span className="lesson__time" id={timeId}>
+                          {formatHours(lesson, week.timezone)}
                         </span>
-                        <a className="lesson__email" href={`mailto:${lesson.student_email}`}>
-                          {lesson.student_email}
-                        </a>
-                        {lesson.series_id && <span className="lesson__tag">{t.weekly}</span>}
-                        {status && <span className="lesson__status">{status}</span>}
+                        <div className="lesson__who">
+                          <span className="lesson__student" id={studentId}>
+                            {lesson.student_name}
+                          </span>
+                          <a className="lesson__email" href={`mailto:${lesson.student_email}`}>
+                            {lesson.student_email}
+                          </a>
+                        </div>
+                        {(lesson.series_id || status) && (
+                          <div className="lesson__notes">
+                            {lesson.series_id && <span className="lesson__tag">{t.weekly}</span>}
+                            {status && <span className="lesson__status">{status}</span>}
+                          </div>
+                        )}
                         {lesson.status === "confirmed" && (
                           <ConfirmAction
                             label={upcoming ? t.cancel : t.noShow}
                             question={upcoming ? t.askCancel : t.askNoShow}
                             confirmLabel={upcoming ? t.yesCancel : t.yesNoShow}
                             declineLabel={t.no}
-                            describedBy={labelId}
+                            describedBy={`${timeId} ${studentId}`}
                             busy={busyWith === lesson.id}
                             onConfirm={() =>
                               change.mutate({
