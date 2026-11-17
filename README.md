@@ -16,6 +16,20 @@ around that workflow.
 > worker sends confirmations and reminders. The interface is in English and
 > Polish. See [what is not done](#what-is-not-done).
 
+<p>
+  <img src="docs/screenshots/week.png" width="100%"
+       alt="The tutor's week: a row for each day, and in it each lesson with its time, the student's name and address and a button to cancel. One lesson is asking whether to cancel, and says the student will not be charged.">
+</p>
+<p>
+  <img src="docs/screenshots/booking.png" width="31%" align="top"
+       alt="The booking page on a phone: free times listed by day, one of them picked, and a bar at the bottom with the picked time and a Continue button.">
+  <img src="docs/screenshots/statement.png" width="66%" align="top"
+       alt="A student's statement for November: nine hours at the start of the month, three lessons of one hour each, six hours left.">
+</p>
+
+The tutor's week, the booking page on a phone, and the statement a parent opens
+from a link.
+
 ## Try it
 
 **Live demo: <https://tutor.mikrus.dev>**
@@ -77,6 +91,15 @@ reaches a server log, the session cookie cannot be read by scripts, and asking
 for a link does not reveal who has an account. A link opened in twelve browsers
 at once signs in exactly one. [ADR 0005](docs/adr/0005-sign-in-by-email-link.md)
 goes through each choice and what is still missing.
+
+**A loop cannot run up a bill.** Asking for sign-in links, booking and the API
+as a whole each have a limit per visitor, counted as a token bucket in the
+process. The interesting part is who counts as one visitor: behind a proxy
+every connection comes from the proxy, a header naming the real address can be
+written by anyone who reaches the process directly, and one home has 2^64 IPv6
+addresses to choose from.
+[ADR 0009](docs/adr/0009-request-limits-in-the-process.md) says what was done
+about each, and where the demo's limit can still be walked around.
 
 **Fakes that cannot drift from the real thing.** Fast tests run against
 in-memory repositories. Each port has one set of contract tests that runs
@@ -211,7 +234,7 @@ frontend/src/
   api/           generated types and a thin client
   ui/            components that know nothing about tutors: Button, TextField, Notice
   features/      booking, auth, panel and billing: one folder per user-facing feature
-docs/            accessibility, load test and deployment notes
+docs/            accessibility, load test and deployment notes, screenshots
 docs/adr/        architecture decision records
 ```
 
@@ -238,8 +261,10 @@ Said here so that nobody has to find out by trying:
   describes, and it may be down.
 - **Nobody has used it with a screen reader**, and nobody but its author has
   used it at all.
-- **No rate limiting.** Do not put it on the public internet with a mail server
-  configured.
+- **The request limits can be walked around** by someone who reaches the demo's
+  server directly instead of through its proxy, and nothing bounds the sign-in
+  links sent to one address from many. Close both before connecting a mail
+  server.
 - **Tutors cannot sign up.** The demo tutor is the only one, unless a row is
   added to the database.
 - **A weekly series has an end** (at most 52 lessons) and its time cannot be

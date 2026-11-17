@@ -89,3 +89,5 @@ answer for a foreign origin.
   enough for development.
 - Not implemented yet, and needed before that: a limit on how many links can be
   requested for one address, and removal of expired tokens and sessions.
+  [ADR 0009](0009-request-limits-in-the-process.md) later limited how many
+  links one visitor can ask for, which is not the same thing.

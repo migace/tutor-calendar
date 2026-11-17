@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
-import { ApiError, type Booking, type Slot } from "../../api/client";
+import { ApiError, isTooManyRequests, type Booking, type Slot } from "../../api/client";
 import { useT, type Messages } from "../../i18n";
 import { Button, TextField } from "../../ui";
 import { useBookLesson, type StudentDetails } from "./useBookLesson";
@@ -50,7 +50,8 @@ export function BookingForm({
   onSlotUnavailable,
   onChangeTime,
 }: BookingFormProps) {
-  const t = useT().booking;
+  const all = useT();
+  const t = all.booking;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -128,9 +129,11 @@ export function BookingForm({
 
         {booking.isError && !isRefusal(booking.error) && (
           <p className="form__error" role="alert">
-            {booking.error instanceof ApiError && booking.error.status === 422
-              ? t.serverRejected
-              : t.couldNotConfirm}
+            {isTooManyRequests(booking.error)
+              ? all.common.tooManyRequests
+              : booking.error instanceof ApiError && booking.error.status === 422
+                ? t.serverRejected
+                : t.couldNotConfirm}
           </p>
         )}
 

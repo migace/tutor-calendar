@@ -24,6 +24,10 @@ from tutor_calendar.config import Settings
 
 BACKEND = Path(__file__).parents[1]
 
+# The tests send hundreds of requests from one address. The limits have tests
+# of their own, which turn them back on.
+os.environ.setdefault("TC_RATE_LIMITS", "false")
+
 
 @pytest.fixture(scope="session")
 def anyio_backend() -> str:

@@ -453,7 +453,10 @@ a.button {
   margin-top: 0;
 }
 
-/* A list of days on a phone, seven columns once there is room for them. */
+/* One row for each day: the date on the left, that day's lessons beside it,
+   each lesson a line of its own. On a phone the date sits above the lessons.
+   Seven columns would look more like a calendar, but a column has no room for
+   a name, an address and a question with two answers, in two languages. */
 .week {
   display: grid;
   gap: var(--space-3);
@@ -462,40 +465,58 @@ a.button {
   list-style: none;
 }
 
-@media (min-width: 64rem) {
-  .week {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    align-items: start;
-  }
-}
-
 .week__day {
+  display: grid;
+  gap: var(--space-2) var(--space-4);
   min-width: 0;
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
 }
 
+@media (min-width: 48rem) {
+  .week__day {
+    grid-template-columns: 10rem minmax(0, 1fr);
+    /* The day's name lines up with the first line of its first lesson. */
+    align-items: baseline;
+  }
+}
+
 .week__day[aria-current="date"] {
   border-color: var(--color-accent);
-  border-width: 2px;
+  /* A thicker edge that does not move what is inside. */
+  box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
 .week__heading {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-size: 1rem;
   font-weight: 600;
+}
+
+/* Polish writes the days of the week in lower case; a heading starts with a capital. */
+.week__weekday {
+  display: inline-block;
+}
+
+.week__weekday::first-letter {
+  text-transform: uppercase;
 }
 
 .week__date {
   color: var(--color-text-muted);
   font-weight: 400;
+  white-space: nowrap;
 }
 
 .week__today {
-  color: var(--color-accent);
-  font-size: 0.8125rem;
+  display: inline-block;
+  padding: 0 var(--space-2);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-radius: 999px;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -508,28 +529,49 @@ a.button {
 .week__lessons {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* The time, who it is with, what is special about it and what can be done,
+   side by side while they fit and under one another when they do not. */
 .lesson {
-  display: grid;
-  padding: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: var(--color-accent-soft);
   border-radius: var(--radius-control);
 }
 
 .lesson__time {
+  flex: none;
+  min-width: 6.5rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.lesson__who {
+  display: grid;
+  flex: 1 1 14rem;
+  justify-items: start;
+  min-width: 0;
 }
 
 .lesson__email {
   color: var(--color-accent);
   font-size: 0.875rem;
-  /* Long addresses wrap inside a narrow column and never widen it. */
+  /* Only an address longer than the whole line is ever broken. */
   overflow-wrap: anywhere;
+}
+
+.lesson__notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
 }
 
 .hours {
@@ -589,11 +631,6 @@ a.button {
 
 /* Lesson states and actions */
 
-.lesson {
-  gap: var(--space-1);
-  justify-items: start;
-}
-
 .lesson--off {
   background: transparent;
   border: 1px dashed var(--color-border);
@@ -615,7 +652,6 @@ a.button {
   color: var(--color-accent);
 }
 
-.lesson .button,
 .confirm .button,
 .day .button {
   min-height: 2.75rem;
@@ -634,6 +670,16 @@ a.button {
   margin: 0;
   color: var(--color-text);
   font-weight: 600;
+}
+
+/* In the week a lesson is one line, so its button sits in that line and the
+   question, when asked, takes a line of its own underneath. */
+.lesson .button {
+  margin-top: 0;
+}
+
+.lesson .confirm {
+  flex-basis: 100%;
 }
 
 .regulars {

@@ -971,6 +971,16 @@
               }
             },
             "description": "This is not a demonstration"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Enter the demo tutor's panel without a sign-in link",
@@ -1011,6 +1021,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Ask for a sign-in link by e-mail",
@@ -1035,6 +1055,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Sign out of this browser",
@@ -1084,6 +1114,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Sign in with the token from a sign-in link",
@@ -1126,6 +1166,16 @@
               }
             },
             "description": "Already cancelled, or already started"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "security": [
@@ -1160,6 +1210,16 @@
               }
             },
             "description": "The manage token is missing or not valid"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "security": [
@@ -1186,6 +1246,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "What the web app needs to know before anyone signs in",
@@ -1227,6 +1297,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "The signed-in tutor",
@@ -1268,6 +1348,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "The hours the tutor teaches each week",
@@ -1311,6 +1401,16 @@
           },
           "422": {
             "description": "The hours overlap or end before they start"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Replace the hours the tutor teaches each week",
@@ -1385,6 +1485,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Cancel one of the tutor's lessons",
@@ -1459,6 +1569,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Record that the student did not turn up",
@@ -1504,6 +1624,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "The tutor's weekly series, oldest first",
@@ -1568,6 +1698,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "End a series: cancel its lessons that have not started",
@@ -1633,6 +1773,16 @@
           },
           "422": {
             "description": "The plan is not possible, or the id belongs to another series"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Book a lesson every week for a number of weeks",
@@ -1678,6 +1828,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "The tutor's students and the lesson time each has left",
@@ -1744,6 +1904,16 @@
           },
           "422": {
             "description": "The entry makes no sense, or the id means another entry"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Record time a student bought, or a correction",
@@ -1825,6 +1995,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "One month of a student's account",
@@ -1887,6 +2067,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "One week of the tutor's lessons, Monday to Sunday",
@@ -1950,6 +2140,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "security": [
@@ -2049,6 +2249,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Book one lesson with a tutor",
@@ -2132,6 +2342,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
           }
         },
         "summary": "Slots that can still be booked with a tutor",

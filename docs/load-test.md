@@ -5,8 +5,12 @@ API, and then asks the database what was actually stored. A run that was fast
 but double-booked a slot is reported as a failure, not as a result.
 
 ```bash
+TC_RATE_LIMITS=false docker compose up -d --build
 cd backend && uv run python scripts/load_test.py
 ```
+
+The request limits have to be off: the script is a single visitor sending
+thousands of requests, which is exactly what they exist to refuse.
 
 ## What the numbers are, and are not
 

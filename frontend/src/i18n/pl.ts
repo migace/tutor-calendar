@@ -19,6 +19,7 @@ export const pl: Messages = {
     skipToContent: "Przejdź do treści",
     siteName: "Tutor Calendar",
     noKeepIt: "Nie, zostaw",
+    tooManyRequests: "Zbyt wiele prób z twojej sieci. Odczekaj kilka minut i spróbuj ponownie.",
   },
 
   demo: {

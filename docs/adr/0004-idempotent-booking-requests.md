@@ -75,4 +75,4 @@ responses automatically, twice, without risk.
   Closing it needs the booking to be findable by the visitor, which arrives
   with sign-in by e-mail link.
 - The endpoint is public and unauthenticated. Rate limiting is not part of this
-  decision and is not implemented yet.
+  decision; it came later, in [ADR 0009](0009-request-limits-in-the-process.md).

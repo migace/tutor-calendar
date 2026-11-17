@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     # A folder with the built web app. When set, the API serves it too, which
     # is how production runs: one process, one origin.
     static_dir: Path | None = None
+    # How often one visitor may call the API. Only worth turning off for a
+    # load test, which is a single visitor by design.
+    rate_limits: bool = True
+    # The header in which the proxy in front of this process puts the
+    # visitor's address, for example CF-Connecting-IP or X-Real-IP. Without
+    # it visitors are told apart by the address of the connection, which
+    # behind a proxy is the same for all of them. Only set it when nothing
+    # can reach this process except through the proxy: anyone else could
+    # write the header themselves.
+    client_address_header: str | None = None
     # Signs the links students use to manage a booking. Without it a random
     # one is made up at start, and links stop working when the process restarts.
     secret_key: str | None = None

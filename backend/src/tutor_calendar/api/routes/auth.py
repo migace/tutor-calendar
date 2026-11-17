@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from tutor_calendar.api.deps import (
     SESSION_COOKIE,
@@ -13,6 +13,7 @@ from tutor_calendar.api.deps import (
     SignInDep,
     SignOutDep,
 )
+from tutor_calendar.api.rate_limit import DEMO_SESSIONS, SIGN_IN_LINKS, Limited
 from tutor_calendar.api.routes.panel import profile_of
 from tutor_calendar.api.schemas import ErrorOut, ProfileOut, SignInIn, SignInLinkIn
 from tutor_calendar.application.errors import InvalidSignInLinkError, NotSignedInError
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/auth", tags=["sign-in"])
         "Always answers 202, whether or not the address belongs to a tutor, so it "
         "cannot be used to find out who has an account."
     ),
+    dependencies=[Depends(Limited(SIGN_IN_LINKS))],
 )
 async def request_sign_in_link(body: SignInLinkIn, use_case: RequestSignInLinkDep) -> None:
     await use_case.execute(body.email)
@@ -79,6 +81,7 @@ def _set_session_cookie(
     summary="Enter the demo tutor's panel without a sign-in link",
     description="Exists only on a public demonstration. Everywhere else it answers 404.",
     responses={404: {"model": ErrorOut, "description": "This is not a demonstration"}},
+    dependencies=[Depends(Limited(DEMO_SESSIONS))],
 )
 async def open_demo_session(
     request: Request, settings: SettingsDep, response: Response
