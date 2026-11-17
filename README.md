@@ -9,7 +9,7 @@ looks different: the same students at the same times, paid for in blocks, with
 "can we move Thursday?" as the most common request. This project is built
 around that workflow.
 
-> **Status: the six-week roadmap is built; a hosted demo is the one thing left.**
+> **Status: the six-week roadmap is built, and a demo is running.**
 > A visitor can book a lesson and cancel it with a link. A tutor can sign in, see
 > their week, change their hours, cancel lessons, set up weekly lessons and keep
 > track of prepaid lesson time, with a statement to share with the parent. A
@@ -18,7 +18,15 @@ around that workflow.
 
 ## Try it
 
-With Docker, one command starts everything with a few weeks of sample data:
+**Live demo: <https://tutor.mikrus.dev>**
+
+It opens on the booking page of a made-up tutor. The banner at the top leads to
+the tutor's side, where one button opens the panel without an account. Book,
+cancel and change whatever you like: the sample data is put back every night at
+03:00 UTC, and the demo sends no e-mail.
+
+To run the same thing yourself with Docker, one command starts everything with
+a few weeks of sample data:
 
 ```bash
 docker compose up --build
@@ -219,14 +227,15 @@ docs/adr/        architecture decision records
 5. **Packages of hours** as an append-only ledger, the parent's statement,
    reminders through a transactional outbox - done.
 6. **Accessibility audit, demo data, load-test numbers**, Polish interface,
-   one deployable image - done. A hosted demo is not up yet.
+   one deployable image, a hosted demo - done.
 
 ## What is not done
 
 Said here so that nobody has to find out by trying:
 
-- **There is no hosted demo yet.** `docker-compose.demo.yml` runs one on a
-  single small server, as [docs/deployment.md](docs/deployment.md) describes.
+- **The demo runs on one small server with no backups and no monitoring.** It
+  is `docker-compose.demo.yml`, as [docs/deployment.md](docs/deployment.md)
+  describes, and it may be down.
 - **Nobody has used it with a screen reader**, and nobody but its author has
   used it at all.
 - **No rate limiting.** Do not put it on the public internet with a mail server
