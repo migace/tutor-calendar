@@ -225,8 +225,8 @@ docs/adr/        architecture decision records
 
 Said here so that nobody has to find out by trying:
 
-- **There is no hosted demo.** Everything needed to run one is in
-  [docs/deployment.md](docs/deployment.md).
+- **There is no hosted demo yet.** `docker-compose.demo.yml` runs one on a
+  single small server, as [docs/deployment.md](docs/deployment.md) describes.
 - **Nobody has used it with a screen reader**, and nobody but its author has
   used it at all.
 - **No rate limiting.** Do not put it on the public internet with a mail server
