@@ -143,6 +143,55 @@ plainly what they do not show.
 generated from the backend's OpenAPI document, and CI fails if the committed
 contract is out of date.
 
+## Architecture
+
+One image runs as three processes over one PostgreSQL database. The web
+process serves both the API and the built web app, so everything is at one
+address. The worker turns finished lessons into ledger entries and delivers the
+mail that bookings put in the outbox. On the hosted demo a third process puts
+the sample data back every night.
+
+```mermaid
+flowchart TB
+    browser["Browser<br/>React app for students, parents and the tutor"]
+    proxy["Proxy that terminates TLS"]
+    smtp["SMTP server<br/>Mailpit in development, none on the demo"]
+
+    subgraph image["One Docker image"]
+        web["web<br/>FastAPI API and the static web app"]
+        worker["worker<br/>charges lessons, sends reminders and mail"]
+        reset["reset<br/>demo only: sample data back at 03:00 UTC"]
+    end
+
+    db[("PostgreSQL 17<br/>no double booking, ledger, outbox")]
+
+    browser -->|HTTPS| proxy
+    proxy -->|HTTP| web
+    web --> db
+    worker --> db
+    reset --> db
+    worker --> smtp
+```
+
+Inside the backend, dependencies point inwards. The API and the worker are the
+two places where adapters are plugged into the use cases.
+
+```mermaid
+flowchart TB
+    api["api/<br/>routes, schemas, request limits"]
+    workerpy["worker.py<br/>background jobs"]
+    adapters["adapters/<br/>PostgreSQL, mail, clock, signed links,<br/>in-memory fakes for tests"]
+    application["application/<br/>use cases and the ports they need"]
+    domain["domain/<br/>scheduling and billing rules,<br/>standard library only"]
+
+    api -->|plugs in| adapters
+    workerpy -->|plugs in| adapters
+    api --> application
+    workerpy --> application
+    adapters -->|implement the ports of| application
+    application --> domain
+```
+
 ## Stack
 
 | | |
