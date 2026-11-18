@@ -18,7 +18,7 @@ from tutor_calendar.adapters.clock import FixedClock
 from tutor_calendar.application.background import SettleLessons
 from tutor_calendar.application.billing import RecordEntry
 from tutor_calendar.application.errors import SlotTakenError
-from tutor_calendar.application.ports import BookingRepository, Ledger
+from tutor_calendar.application.ports import Ledger, LessonStore
 from tutor_calendar.application.series import StartSeries
 from tutor_calendar.domain.billing import EntryKind
 from tutor_calendar.domain.scheduling import (
@@ -40,9 +40,7 @@ _DAY = timedelta(days=1)
 
 
 class _Seeder:
-    def __init__(
-        self, tutor: Tutor, bookings: BookingRepository, ledger: Ledger, now: datetime
-    ) -> None:
+    def __init__(self, tutor: Tutor, bookings: LessonStore, ledger: Ledger, now: datetime) -> None:
         self.tutor = tutor
         self.bookings = bookings
         self.ledger = ledger
@@ -96,9 +94,7 @@ class _Seeder:
         )
 
 
-async def populate(
-    tutor: Tutor, bookings: BookingRepository, ledger: Ledger, now: datetime
-) -> bool:
+async def populate(tutor: Tutor, bookings: LessonStore, ledger: Ledger, now: datetime) -> bool:
     """Fill the tutor's calendar and accounts. Returns False if there was activity already."""
     if await bookings.students(tutor.id):
         return False

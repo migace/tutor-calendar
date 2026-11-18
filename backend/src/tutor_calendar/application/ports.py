@@ -65,27 +65,6 @@ class BookingRepository(Protocol):
         """
         ...
 
-    async def series(self, tutor_id: UUID) -> list[LessonSeries]:
-        """The tutor's weekly series, oldest first."""
-        ...
-
-    async def get_series(self, series_id: UUID) -> LessonSeries | None: ...
-
-    async def lessons_of_series(self, series_id: UUID) -> list[Booking]:
-        """Every lesson of a series, cancelled ones included, earliest first."""
-        ...
-
-    async def add_series(
-        self, series: LessonSeries, lessons: Sequence[Booking], *, skip_conflicts: bool
-    ) -> list[Booking]:
-        """Store a series and its lessons as one change, and return those stored.
-
-        A lesson that overlaps one already booked is left out when
-        ``skip_conflicts`` is set. Otherwise nothing at all is stored and
-        ``SeriesConflictError`` names the days in the way.
-        """
-        ...
-
     async def get_by_idempotency_key(self, tutor_id: UUID, key: str) -> Booking | None: ...
 
     async def add(
@@ -107,15 +86,50 @@ class BookingRepository(Protocol):
         """
         ...
 
+
+class SeriesRepository(Protocol):
+    """Weekly series and the lessons laid out from them. See ADR 0006."""
+
+    async def series(self, tutor_id: UUID) -> list[LessonSeries]:
+        """The tutor's weekly series, oldest first."""
+        ...
+
+    async def get_series(self, series_id: UUID) -> LessonSeries | None: ...
+
+    async def lessons_of_series(self, series_id: UUID) -> list[Booking]:
+        """Every lesson of a series, cancelled ones included, earliest first."""
+        ...
+
+    async def add_series(
+        self, series: LessonSeries, lessons: Sequence[Booking], *, skip_conflicts: bool
+    ) -> list[Booking]:
+        """Store a series and its lessons as one change, and return those stored.
+
+        A lesson that overlaps one already booked is left out when
+        ``skip_conflicts`` is set. Otherwise nothing at all is stored and
+        ``SeriesConflictError`` names the days in the way.
+        """
+        ...
+
+
+class StudentDirectory(Protocol):
     async def students(self, tutor_id: UUID) -> dict[str, str]:
         """Everyone who has had a lesson with the tutor: account key to latest name."""
         ...
+
+
+class SettlementQueue(Protocol):
+    """Lessons waiting to be charged, for the worker. See ADR 0007."""
 
     async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
         """Lessons whose cost is final (see ``is_settled``) and not yet marked as settled."""
         ...
 
     async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None: ...
+
+
+class ReminderQueue(Protocol):
+    """Lessons waiting for a reminder, for the worker."""
 
     async def due_for_reminder(self, now: datetime, lead: timedelta, limit: int) -> list[Booking]:
         """Confirmed lessons starting within ``lead`` that have had no reminder.
@@ -135,6 +149,22 @@ class BookingRepository(Protocol):
         were queued.
         """
         ...
+
+
+class LessonStore(
+    BookingRepository,
+    SeriesRepository,
+    StudentDirectory,
+    SettlementQueue,
+    ReminderQueue,
+    Protocol,
+):
+    """The five ports for lessons, at once.
+
+    Lessons live in one table, so one object fills all five roles. Only the
+    composition root asks for the whole of it; a use case names the one role
+    it needs, and cannot reach the rest.
+    """
 
 
 class CredentialStore(Protocol):

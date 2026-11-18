@@ -8,10 +8,10 @@ from uuid import UUID
 
 from tutor_calendar.application.errors import InvalidEntryError, StatementNotFoundError
 from tutor_calendar.application.ports import (
-    BookingRepository,
     Clock,
     Ledger,
     StatementLinks,
+    StudentDirectory,
     TutorRepository,
 )
 from tutor_calendar.domain.billing import (
@@ -95,12 +95,12 @@ class Account:
 class ListAccounts:
     """Every student of a tutor, with what is left of the time they paid for."""
 
-    def __init__(self, ledger: Ledger, bookings: BookingRepository) -> None:
+    def __init__(self, ledger: Ledger, students: StudentDirectory) -> None:
         self._ledger = ledger
-        self._bookings = bookings
+        self._students = students
 
     async def execute(self, tutor: Tutor) -> list[Account]:
-        names = await self._bookings.students(tutor.id)
+        names = await self._students.students(tutor.id)
         balances = await self._ledger.balances(tutor.id)
         accounts = [
             Account(email, names.get(email), balances.get(email, 0))
@@ -134,9 +134,9 @@ def _next_month(first: date) -> date:
 class ShowStatement:
     """One calendar month of an account, on the tutor's calendar."""
 
-    def __init__(self, ledger: Ledger, bookings: BookingRepository, clock: Clock) -> None:
+    def __init__(self, ledger: Ledger, students: StudentDirectory, clock: Clock) -> None:
         self._ledger = ledger
-        self._bookings = bookings
+        self._students = students
         self._clock = clock
 
     async def execute(self, tutor: Tutor, student_email: str, month: date | None) -> StatementView:
@@ -148,7 +148,7 @@ class ShowStatement:
         period = TimeRange(start_of_day(first, tz), start_of_day(following, tz))
 
         entries = await self._ledger.entries(tutor.id, account)
-        names = await self._bookings.students(tutor.id)
+        names = await self._students.students(tutor.id)
         if not entries and account not in names:
             raise StatementNotFoundError
         return StatementView(

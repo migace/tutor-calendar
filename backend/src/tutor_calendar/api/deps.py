@@ -16,10 +16,10 @@ from tutor_calendar.application.errors import NotSignedInError
 from tutor_calendar.application.lessons import ChangeOwnLesson, ManageBooking
 from tutor_calendar.application.list_available_slots import ListAvailableSlots
 from tutor_calendar.application.ports import (
-    BookingRepository,
     Clock,
     CredentialStore,
     Ledger,
+    LessonStore,
     Mailer,
     ManageLinks,
     StatementLinks,
@@ -46,8 +46,9 @@ def _tutors(request: Request) -> TutorRepository:
     return cast(TutorRepository, request.app.state.tutors)
 
 
-def _bookings(request: Request) -> BookingRepository:
-    return cast(BookingRepository, request.app.state.bookings)
+def _bookings(request: Request) -> LessonStore:
+    # One object in every role; each use case below is typed to the role it needs.
+    return cast(LessonStore, request.app.state.bookings)
 
 
 def _credentials(request: Request) -> CredentialStore:
@@ -117,7 +118,7 @@ def get_list_series(request: Request) -> ListSeries:
 
 
 def get_end_series(request: Request) -> EndSeries:
-    return EndSeries(_bookings(request), _clock(request))
+    return EndSeries(_bookings(request), _bookings(request), _clock(request))
 
 
 def get_request_sign_in_link(request: Request) -> RequestSignInLink:

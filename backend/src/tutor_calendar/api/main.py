@@ -30,10 +30,10 @@ from tutor_calendar.api.routes import bookings as booking_routes
 from tutor_calendar.api.schemas import ErrorOut
 from tutor_calendar.api.web_app import HttpsRedirect, SecurityHeaders, WebApp
 from tutor_calendar.application.ports import (
-    BookingRepository,
     Clock,
     CredentialStore,
     Ledger,
+    LessonStore,
     Mailer,
     ManageLinks,
     StatementLinks,
@@ -59,7 +59,7 @@ def create_app(
     *,
     clock: Clock | None = None,
     tutors: TutorRepository | None = None,
-    bookings: BookingRepository | None = None,
+    bookings: LessonStore | None = None,
     credentials: CredentialStore | None = None,
     mailer: Mailer | None = None,
     links: ManageLinks | None = None,

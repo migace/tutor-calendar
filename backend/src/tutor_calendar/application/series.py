@@ -11,7 +11,7 @@ from tutor_calendar.application.errors import (
     SeriesConflictError,
     SeriesNotFoundError,
 )
-from tutor_calendar.application.ports import BookingRepository, Clock
+from tutor_calendar.application.ports import BookingRepository, Clock, SeriesRepository
 from tutor_calendar.domain.scheduling import (
     Actor,
     Booking,
@@ -52,18 +52,18 @@ class StartSeries:
     to repeat.
     """
 
-    def __init__(self, bookings: BookingRepository, clock: Clock) -> None:
-        self._bookings = bookings
+    def __init__(self, series: SeriesRepository, clock: Clock) -> None:
+        self._series = series
         self._clock = clock
 
     async def execute(
         self, tutor: Tutor, series_id: UUID, plan: WeeklySeries, *, skip_conflicts: bool = False
     ) -> SeriesOverview:
-        earlier = await self._bookings.get_series(series_id)
+        earlier = await self._series.get_series(series_id)
         if earlier is not None:
             if earlier.tutor_id != tutor.id or earlier.plan != plan:
                 raise InvalidSeriesError("this series id is already used for a different series")
-            return _overview(earlier, await self._bookings.lessons_of_series(series_id), tutor)
+            return _overview(earlier, await self._series.lessons_of_series(series_id), tutor)
 
         now = self._clock.now()
         occurrences, _ = plan.lay_out(tutor.schedule)
@@ -85,7 +85,7 @@ class StartSeries:
             )
             for each in upcoming
         ]
-        stored = await self._bookings.add_series(series, lessons, skip_conflicts=skip_conflicts)
+        stored = await self._series.add_series(series, lessons, skip_conflicts=skip_conflicts)
         if not stored:
             # Every single lesson was in the way of something: there is no series to keep.
             raise SeriesConflictError([each.slot for each in upcoming])
@@ -93,13 +93,13 @@ class StartSeries:
 
 
 class ListSeries:
-    def __init__(self, bookings: BookingRepository) -> None:
-        self._bookings = bookings
+    def __init__(self, series: SeriesRepository) -> None:
+        self._series = series
 
     async def execute(self, tutor: Tutor) -> list[SeriesOverview]:
         return [
-            _overview(series, await self._bookings.lessons_of_series(series.id), tutor)
-            for series in await self._bookings.series(tutor.id)
+            _overview(series, await self._series.lessons_of_series(series.id), tutor)
+            for series in await self._series.series(tutor.id)
         ]
 
 
@@ -110,21 +110,22 @@ class EndSeries:
     and stay as they are.
     """
 
-    def __init__(self, bookings: BookingRepository, clock: Clock) -> None:
+    def __init__(self, series: SeriesRepository, bookings: BookingRepository, clock: Clock) -> None:
+        self._series = series
         self._bookings = bookings
         self._clock = clock
 
     async def execute(self, tutor: Tutor, series_id: UUID) -> SeriesOverview:
-        series = await self._bookings.get_series(series_id)
+        series = await self._series.get_series(series_id)
         if series is None or series.tutor_id != tutor.id:
             raise SeriesNotFoundError
 
         now = self._clock.now()
-        lessons = await self._bookings.lessons_of_series(series_id)
+        lessons = await self._series.lessons_of_series(series_id)
         changes = [
             (lesson, lesson.cancel(Actor.TUTOR, now, tutor.cancellation_policy))
             for lesson in lessons
             if lesson.status is LessonStatus.CONFIRMED and lesson.slot.start > now
         ]
         await self._bookings.apply(changes)
-        return _overview(series, await self._bookings.lessons_of_series(series_id), tutor)
+        return _overview(series, await self._series.lessons_of_series(series_id), tutor)

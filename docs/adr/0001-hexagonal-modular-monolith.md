@@ -38,6 +38,15 @@ imports, so it cannot erode silently.
 Inside the layers, code is grouped by module (`scheduling` now; `billing`,
 `notifications` and `identity` as they arrive), not by technical kind.
 
+*Added 2026-11-18.* Two more rules are now enforced by the same test. The
+calendar does not import billing: billing charges for lessons and so reads the
+calendar, never the other way round. And the PostgreSQL adapters do not import
+the in-memory fakes, after the real outbox was found borrowing its retry
+schedule from the fake one. The port for lessons was also split by role
+(`BookingRepository`, `SeriesRepository`, `StudentDirectory`, `SettlementQueue`,
+`ReminderQueue`), so a use case is handed only what it uses. One class per
+store still implements all five, because they are one table.
+
 ## Alternatives considered
 
 - **Django.** Faster to a working CRUD and an admin panel. Rejected because the

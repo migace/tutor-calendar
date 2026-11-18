@@ -332,7 +332,7 @@ class TestWeeklySeries:
         # A week and a half later: one lesson has taken place.
         scenario.now = FIVE_ON_THE_17TH + timedelta(days=3)
 
-        ended = await EndSeries(scenario.bookings, scenario.clock).execute(
+        ended = await EndSeries(scenario.bookings, scenario.bookings, scenario.clock).execute(
             scenario.tutor, series_id
         )
 
@@ -347,7 +347,7 @@ class TestWeeklySeries:
     async def test_only_the_tutor_who_owns_a_series_can_end_it(self, scenario: Scenario) -> None:
         series_id = uuid4()
         await scenario.start_series.execute(scenario.tutor, series_id, TUESDAYS_AT_FIVE)
-        end = EndSeries(scenario.bookings, scenario.clock)
+        end = EndSeries(scenario.bookings, scenario.bookings, scenario.clock)
 
         with pytest.raises(SeriesNotFoundError):
             await end.execute(scenario.other_tutor, series_id)
