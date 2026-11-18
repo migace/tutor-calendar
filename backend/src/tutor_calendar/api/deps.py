@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 from typing import Annotated, cast
+from uuid import UUID
 
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tutor_calendar.application.billing import (
+    FindStudent,
     ListAccounts,
+    OpenAccount,
     RecordEntry,
     ShareStatement,
     ShowStatement,
 )
 from tutor_calendar.application.book_lesson import BookLesson
-from tutor_calendar.application.errors import NotSignedInError
+from tutor_calendar.application.errors import NotSignedInError, StudentNotFoundError
 from tutor_calendar.application.lessons import ChangeOwnLesson, ManageBooking
 from tutor_calendar.application.list_available_slots import ListAvailableSlots
 from tutor_calendar.application.ports import (
@@ -23,6 +26,7 @@ from tutor_calendar.application.ports import (
     Mailer,
     ManageLinks,
     StatementLinks,
+    StudentRecord,
     TutorRepository,
 )
 from tutor_calendar.application.series import EndSeries, ListSeries, StartSeries
@@ -82,11 +86,15 @@ def _ledger(request: Request) -> Ledger:
 
 
 def get_record_entry(request: Request) -> RecordEntry:
-    return RecordEntry(_ledger(request), _clock(request))
+    return RecordEntry(_ledger(request), _bookings(request), _clock(request))
 
 
 def get_list_accounts(request: Request) -> ListAccounts:
     return ListAccounts(_ledger(request), _bookings(request))
+
+
+def get_open_account(request: Request) -> OpenAccount:
+    return OpenAccount(_ledger(request), _bookings(request), _clock(request))
 
 
 def get_show_statement(request: Request) -> ShowStatement:
@@ -158,6 +166,16 @@ async def get_signed_in_tutor(request: Request, session_token: SessionToken = No
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=str(error)) from error
 
 
+async def get_own_student(
+    request: Request, student_id: UUID, tutor: Annotated[Tutor, Depends(get_signed_in_tutor)]
+) -> StudentRecord:
+    """The student a path names, if they are the signed-in tutor's."""
+    try:
+        return await FindStudent(_bookings(request)).execute(tutor, student_id)
+    except StudentNotFoundError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
 EngineDep = Annotated[AsyncEngine, Depends(get_engine)]
 ClockDep = Annotated[Clock, Depends(_clock)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -170,6 +188,7 @@ ListSeriesDep = Annotated[ListSeries, Depends(get_list_series)]
 EndSeriesDep = Annotated[EndSeries, Depends(get_end_series)]
 RecordEntryDep = Annotated[RecordEntry, Depends(get_record_entry)]
 ListAccountsDep = Annotated[ListAccounts, Depends(get_list_accounts)]
+OpenAccountDep = Annotated[OpenAccount, Depends(get_open_account)]
 ShowStatementDep = Annotated[ShowStatement, Depends(get_show_statement)]
 ShareStatementDep = Annotated[ShareStatement, Depends(get_share_statement)]
 RequestSignInLinkDep = Annotated[RequestSignInLink, Depends(get_request_sign_in_link)]
@@ -178,3 +197,4 @@ SignOutDep = Annotated[SignOut, Depends(get_sign_out)]
 ShowWeekDep = Annotated[ShowWeek, Depends(get_show_week)]
 ChangeWeeklyHoursDep = Annotated[ChangeWeeklyHours, Depends(get_change_weekly_hours)]
 SignedInTutor = Annotated[Tutor, Depends(get_signed_in_tutor)]
+OwnStudent = Annotated[StudentRecord, Depends(get_own_student)]

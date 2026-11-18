@@ -75,6 +75,11 @@ class InvalidEntryError(Exception):
     """A ledger entry that makes no sense, or an id reused for a different entry."""
 
 
+class StudentNotFoundError(Exception):
+    def __init__(self) -> None:
+        super().__init__("no such student")
+
+
 class StatementNotFoundError(Exception):
     def __init__(self) -> None:
         super().__init__("no such statement")

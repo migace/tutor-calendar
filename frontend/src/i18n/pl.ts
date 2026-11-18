@@ -272,6 +272,8 @@ export const pl: Messages = {
     findHint: "Żeby zapisać pakiet komuś, kto jeszcze nie zarezerwował lekcji.",
     emailInvalid: "Podaj adres e-mail, na przykład imie@example.com.",
     open: "Otwórz konto",
+    opening: "Otwieram…",
+    openFailed: "Nie udało się otworzyć konta. Spróbuj ponownie.",
   },
 
   student: {
@@ -279,6 +281,8 @@ export const pl: Messages = {
     loading: "Wczytuję konto…",
     loadFailedTitle: "Nie udało się wczytać konta",
     all: "Wszyscy uczniowie",
+    missingTitle: "Nie ma takiego ucznia",
+    missingBody: "Link może być nieaktualny. Wszyscy Twoi uczniowie są na liście.",
     nothingTitle: "Dla tego adresu nic jeszcze nie zapisano",
     nothingBody:
       "Zapisz poniżej czas lekcji, żeby otworzyć konto tego ucznia. Najpierw sprawdź adres: po nim lekcje ucznia zostaną przypisane do konta.",

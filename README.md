@@ -92,6 +92,14 @@ for a link does not reveal who has an account. A link opened in twelve browsers
 at once signs in exactly one. [ADR 0005](docs/adr/0005-sign-in-by-email-link.md)
 goes through each choice and what is still missing.
 
+**No e-mail address in any address.** A student used to be their e-mail
+address, which put it in the path of every request about them, and so in every
+access log on the way. Students now have an id, given to them in the same
+transaction as their first booking, and a migration enrols everyone who was
+there before. [ADR 0010](docs/adr/0010-students-get-an-id.md) says why the id
+is a row and not an encrypted address, and what still names students by
+address.
+
 **A loop cannot run up a bill.** Asking for sign-in links, booking and the API
 as a whole each have a limit per visitor, counted as a token bucket in the
 process. The interesting part is who counts as one visitor: behind a proxy
@@ -267,6 +275,8 @@ Said here so that nobody has to find out by trying:
   server.
 - **Tutors cannot sign up.** The demo tutor is the only one, unless a row is
   added to the database.
+- **A student cannot change their e-mail address.** They have an id now, but
+  bookings and the ledger still find them by address.
 - **A weekly series has an end** (at most 52 lessons) and its time cannot be
   changed, only ended and started again.
 - **E-mail is in English only**, and old messages, tokens and sessions are

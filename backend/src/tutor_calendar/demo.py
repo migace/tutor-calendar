@@ -67,7 +67,8 @@ async def wipe_activity(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE bookings, lesson_series, ledger_entries, outbox, sign_in_tokens, sessions"
+                "TRUNCATE bookings, lesson_series, ledger_entries, students, outbox,"
+                " sign_in_tokens, sessions"
             )
         )
         # Whatever visitors changed in the demo tutor's hours goes too.

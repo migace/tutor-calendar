@@ -29,6 +29,7 @@ from sqlalchemy.dialects.postgresql import TSTZRANGE, ExcludeConstraint
 
 BOOKINGS_NO_OVERLAP = "bookings_no_overlap"
 BOOKINGS_IDEMPOTENCY_KEY = "bookings_idempotency_key_unique"
+STUDENTS_ACCOUNT = "students_account_unique"
 
 metadata = MetaData(
     naming_convention={
@@ -144,6 +145,24 @@ bookings = Table(
         using="gist",
         where=text("status <> 'cancelled'"),
     ),
+)
+
+# A student's name is the one on their latest booking, looked up by address.
+Index("bookings_student_idx", bookings.c.tutor_id, func.lower(bookings.c.student_email))
+
+# Pairs each student's address with an id that can stand for it where the
+# address must not appear, such as the address of a page. Bookings and the
+# ledger still name students by address. See ADR 0010.
+students = Table(
+    "students",
+    metadata,
+    Column("id", Uuid, primary_key=True, server_default=text("gen_random_uuid()")),
+    Column("tutor_id", Uuid, ForeignKey("tutors.id", ondelete="RESTRICT"), nullable=False),
+    # The address in lower case, exactly as the ledger files it.
+    Column("account", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("tutor_id", "account", name=STUDENTS_ACCOUNT),
+    CheckConstraint("account = lower(account)", name="students_account_is_lower_case"),
 )
 
 # Both tables are keyed by the SHA-256 digest of a secret, never the secret. See ADR 0005.

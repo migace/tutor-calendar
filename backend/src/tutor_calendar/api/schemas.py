@@ -162,7 +162,12 @@ class WeekOut(BaseModel):
     days: list[DayOut] = Field(description="Monday to Sunday")
 
 
+class AccountIn(BaseModel):
+    email: Annotated[EmailStr, Field(max_length=MAX_EMAIL_LENGTH)]
+
+
 class AccountOut(BaseModel):
+    id: UUID = Field(description="Stands for the student in addresses, where an e-mail must not go")
     email: str
     name: str | None = Field(description="From the student's latest booking, if they have one")
     balance_minutes: int = Field(description="Lesson time paid for and unused; negative is owed")
@@ -199,6 +204,9 @@ class StatementOut(BaseModel):
     closing_minutes: int = Field(description="Balance at the end of the month")
     balance_minutes: int = Field(description="Balance today")
     entries: list[EntryOut]
+    nothing_recorded: bool = Field(
+        description="True while the student has no lesson and no entry in any month"
+    )
     share_token: str | None = Field(
         description="For the tutor only: lets a parent open this student's statements"
     )

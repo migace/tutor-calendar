@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Row, func, insert, select, update
+from sqlalchemy import Row, Select, func, insert, select, update
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -14,13 +14,16 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from tutor_calendar.adapters.postgres.billing import outbox_row
 from tutor_calendar.adapters.postgres.tables import (
     BOOKINGS_IDEMPOTENCY_KEY,
+    STUDENTS_ACCOUNT,
     bookings,
     lesson_series,
     outbox,
+    students,
     tutors,
 )
 from tutor_calendar.application.errors import SeriesConflictError, SlotTakenError
-from tutor_calendar.application.ports import Email
+from tutor_calendar.application.ports import Email, StudentRecord
+from tutor_calendar.domain.billing import account_key
 from tutor_calendar.domain.scheduling import (
     Actor,
     Booking,
@@ -106,6 +109,10 @@ class PostgresBookingRepository:
             async with self._engine.begin() as connection:
                 await _queue_behind_other_writers(connection, booking.tutor_id)
                 inserted = (await connection.execute(insert_booking)).one_or_none()
+                if inserted is not None:
+                    await _enrol(
+                        connection, booking.tutor_id, booking.student.email, booking.created_at
+                    )
                 if inserted is not None and confirmation is not None:
                     # Same transaction as the booking: the message is queued if
                     # and only if the booking is stored. See ADR 0007.
@@ -144,25 +151,29 @@ class PostgresBookingRepository:
                 applied += result.rowcount
         return applied
 
-    async def students(self, tutor_id: UUID) -> dict[str, str]:
-        account = func.lower(bookings.c.student_email)
-        # The name on each student's most recent booking: number each student's
-        # bookings from the newest and keep the first.
-        newest_first = func.row_number().over(
-            partition_by=account, order_by=(bookings.c.created_at.desc(), bookings.c.id)
-        )
-        ranked = (
-            select(
-                account.label("account"),
-                bookings.c.student_name,
-                newest_first.label("position"),
-            )
-            .where(bookings.c.tutor_id == tutor_id)
-            .subquery()
-        )
-        query = select(ranked.c.account, ranked.c.student_name).where(ranked.c.position == 1)
+    async def students(self, tutor_id: UUID) -> list[StudentRecord]:
         async with self._engine.connect() as connection:
-            return {row[0]: row[1] for row in await connection.execute(query)}
+            rows = await connection.execute(_students_where(students.c.tutor_id == tutor_id))
+            return [_student(row) for row in rows]
+
+    async def get_student(self, student_id: UUID) -> StudentRecord | None:
+        async with self._engine.connect() as connection:
+            row = (
+                await connection.execute(_students_where(students.c.id == student_id))
+            ).one_or_none()
+            return None if row is None else _student(row)
+
+    async def find_student(self, tutor_id: UUID, account: str) -> StudentRecord | None:
+        async with self._engine.connect() as connection:
+            return await _find_student(connection, tutor_id, account)
+
+    async def enrol(self, tutor_id: UUID, account: str, now: datetime) -> StudentRecord:
+        async with self._engine.begin() as connection:
+            await _enrol(connection, tutor_id, account, now)
+            student = await _find_student(connection, tutor_id, account)
+        if student is None:
+            raise RuntimeError("a student vanished between being enrolled and being read")
+        return student
 
     async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
         # The same rule as ``is_settled`` in the domain, said in SQL.
@@ -299,6 +310,7 @@ class PostgresBookingRepository:
                 await connection.execute(
                     insert(bookings), [_values(lesson, f"series-{lesson.id}") for lesson in free]
                 )
+                await _enrol(connection, series.tutor_id, plan.student.email, series.created_at)
                 return free
         except IntegrityError as error:
             # Not reachable through the lock above, but the constraint is the
@@ -313,6 +325,49 @@ async def _queue_behind_other_writers(connection: AsyncConnection, tutor_id: UUI
     await connection.execute(
         select(tutors.c.id).where(tutors.c.id == tutor_id).with_for_update(key_share=True)
     )
+
+
+async def _enrol(connection: AsyncConnection, tutor_id: UUID, email: str, now: datetime) -> None:
+    # Someone who is enrolled already stays as they are, id included. The
+    # constraint decides, so two requests for a new address leave one student.
+    await connection.execute(
+        pg_insert(students)
+        .values(tutor_id=tutor_id, account=account_key(email), created_at=now)
+        .on_conflict_do_nothing(constraint=STUDENTS_ACCOUNT)
+    )
+
+
+def _students_where(*conditions: Any) -> Select[Any]:
+    # The name on each student's most recent booking, found through
+    # bookings_student_idx. NULL for a student with no booking yet.
+    latest_name = (
+        select(bookings.c.student_name)
+        .where(
+            bookings.c.tutor_id == students.c.tutor_id,
+            func.lower(bookings.c.student_email) == students.c.account,
+        )
+        .order_by(bookings.c.created_at.desc(), bookings.c.id)
+        .limit(1)
+        .scalar_subquery()
+    )
+    return select(
+        students.c.id, students.c.tutor_id, students.c.account, latest_name.label("name")
+    ).where(*conditions)
+
+
+async def _find_student(
+    connection: AsyncConnection, tutor_id: UUID, account: str
+) -> StudentRecord | None:
+    row = (
+        await connection.execute(
+            _students_where(students.c.tutor_id == tutor_id, students.c.account == account)
+        )
+    ).one_or_none()
+    return None if row is None else _student(row)
+
+
+def _student(row: Row[Any]) -> StudentRecord:
+    return StudentRecord(id=row.id, tutor_id=row.tutor_id, account=row.account, name=row.name)
 
 
 def _range(time_range: TimeRange) -> Range[Any]:

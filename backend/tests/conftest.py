@@ -79,7 +79,9 @@ async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(database_url)
     async with engine.begin() as connection:
         await connection.execute(
-            text("TRUNCATE tutors, bookings, lesson_series, ledger_entries, outbox CASCADE")
+            text(
+                "TRUNCATE tutors, bookings, lesson_series, ledger_entries, students, outbox CASCADE"
+            )
         )
     try:
         yield engine

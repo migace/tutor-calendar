@@ -54,7 +54,9 @@ def web(built: Path) -> Iterator[TestClient]:
     yield from client_for(built)
 
 
-@pytest.mark.parametrize("path", ["/", "/book/demo", "/panel/students/anna%40example.com"])
+@pytest.mark.parametrize(
+    "path", ["/", "/book/demo", "/panel/students/0b5c1f4e-6f0a-4c59-9a43-6d2f6f0c7d11"]
+)
 def test_any_page_of_the_app_is_answered_with_the_app(web: TestClient, path: str) -> None:
     response = web.get(path)
 

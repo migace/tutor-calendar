@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from tests.factories import ANNA, FIRST_SLOT, NOW, a_booking, a_tutor
+from tests.factories import FIRST_SLOT, NOW, a_booking, a_tutor
 from tutor_calendar.adapters.in_memory_billing import InMemoryLedger, InMemoryOutbox
 from tutor_calendar.adapters.in_memory_bookings import InMemoryBookingRepository
 from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOutbox
@@ -283,17 +283,6 @@ class LedgerAndOutboxContract:
         )
 
         assert queued == 0
-
-    async def test_students_are_listed_by_address_with_their_latest_name(
-        self, stores: Stores
-    ) -> None:
-        first = a_booking(stores.tutor.id, FIRST_SLOT, student=Student("Ania", "Anna@Example.com"))
-        await stores.bookings.add(first, "k1")
-        later = a_booking(stores.tutor.id, FIRST_SLOT + DAY, student=ANNA)
-        await stores.bookings.add(replace(later, created_at=NOW + HOUR), "k2")
-        await stores.bookings.add(a_booking(stores.other_tutor.id), "k3")
-
-        assert await stores.bookings.students(stores.tutor.id) == {"anna@example.com": "Anna Nowak"}
 
 
 class TestInMemory(LedgerAndOutboxContract):

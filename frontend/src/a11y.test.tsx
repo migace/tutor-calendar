@@ -80,6 +80,7 @@ const STATEMENT: Statement = {
   opening_minutes: 600,
   closing_minutes: -60,
   balance_minutes: -60,
+  nothing_recorded: false,
   share_token: "c2hhcmU.signature",
   entries: [
     { id: "e1", kind: "lesson", minutes: -60, note: "Lesson", at: "2026-11-10T16:00:00Z", lesson_id: "l1" },
@@ -124,10 +125,15 @@ function everything(demo = false) {
     "GET /api/v1/me/series": () => json(200, [SERIES]),
     "GET /api/v1/me/students": () =>
       json(200, [
-        { email: "anna@example.com", name: "Anna Nowak", balance_minutes: -60 },
-        { email: "bartek@example.com", name: null, balance_minutes: 300 },
+        { id: "aaaaaaaa-0000-4000-8000-000000000001", email: "anna@example.com", name: "Anna Nowak", balance_minutes: -60 },
+        {
+          id: "bbbbbbbb-0000-4000-8000-000000000002",
+          email: "bartek@example.com",
+          name: null,
+          balance_minutes: 300,
+        },
       ]),
-    "GET /api/v1/me/students/anna%40example.com/statement": () => json(200, STATEMENT),
+    "GET /api/v1/me/students/aaaaaaaa-0000-4000-8000-000000000001/statement": () => json(200, STATEMENT),
     "GET /api/v1/statement": () => json(200, STATEMENT),
   });
 }
@@ -244,7 +250,7 @@ describe("no screen has a mechanical accessibility failure", () => {
 
   it("a student's account with its statement and form", async () => {
     everything();
-    const user = open("/panel/students/anna%40example.com");
+    const user = open("/panel/students/aaaaaaaa-0000-4000-8000-000000000001");
 
     await user.click(await screen.findByRole("radio", { name: "A correction" }));
     await user.click(screen.getByRole("button", { name: "Record" }));
@@ -285,7 +291,7 @@ describe("every page has one main landmark and one top-level heading", () => {
     ["/panel", ""],
     ["/panel/regulars", ""],
     ["/panel/students", ""],
-    ["/panel/students/anna%40example.com", ""],
+    ["/panel/students/aaaaaaaa-0000-4000-8000-000000000001", ""],
     ["/panel/availability", ""],
     ["/statement", TOKEN],
     ["/nowhere", ""],
