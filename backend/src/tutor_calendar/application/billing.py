@@ -6,12 +6,17 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from uuid import UUID
 
-from tutor_calendar.application.errors import InvalidEntryError, StatementNotFoundError
+from tutor_calendar.application.errors import (
+    InvalidEntryError,
+    StatementNotFoundError,
+    StudentNotFoundError,
+)
 from tutor_calendar.application.ports import (
     Clock,
     Ledger,
     StatementLinks,
     StudentDirectory,
+    StudentRecord,
     TutorRepository,
 )
 from tutor_calendar.domain.billing import (
@@ -31,10 +36,14 @@ class RecordEntry:
     The caller chooses the id of the entry. Recording the same entry again with
     the same id changes nothing, so a repeated request cannot credit a package
     twice.
+
+    The address is enrolled before anything is filed under it, so whoever has
+    an entry also has an id. See ADR 0010.
     """
 
-    def __init__(self, ledger: Ledger, clock: Clock) -> None:
+    def __init__(self, ledger: Ledger, students: StudentDirectory, clock: Clock) -> None:
         self._ledger = ledger
+        self._students = students
         self._clock = clock
 
     async def execute(
@@ -63,6 +72,7 @@ class RecordEntry:
         except ValueError as error:
             raise InvalidEntryError(str(error)) from error
 
+        await self._students.enrol(tutor.id, entry.account, now)
         if await self._ledger.post([entry]) == 1:
             return entry
         # The id was there already: a repeat, unless it now means something else.
@@ -84,8 +94,23 @@ class RecordEntry:
         return earlier
 
 
+class FindStudent:
+    """One of the tutor's own students, by the id that stands for their address."""
+
+    def __init__(self, students: StudentDirectory) -> None:
+        self._students = students
+
+    async def execute(self, tutor: Tutor, student_id: UUID) -> StudentRecord:
+        student = await self._students.get_student(student_id)
+        # Another tutor's student is reported exactly like one that does not exist.
+        if student is None or student.tutor_id != tutor.id:
+            raise StudentNotFoundError
+        return student
+
+
 @dataclass(frozen=True, slots=True)
 class Account:
+    id: UUID
     email: str
     name: str | None
     # Minutes of lessons paid for and not yet used; negative means time is owed.
@@ -93,20 +118,43 @@ class Account:
 
 
 class ListAccounts:
-    """Every student of a tutor, with what is left of the time they paid for."""
+    """Every student of a tutor, with what is left of the time they paid for.
+
+    An address that was only ever looked up, with no lesson and no entry, is
+    left out: a mistyped address should not stay on the list for ever.
+    """
 
     def __init__(self, ledger: Ledger, students: StudentDirectory) -> None:
         self._ledger = ledger
         self._students = students
 
     async def execute(self, tutor: Tutor) -> list[Account]:
-        names = await self._students.students(tutor.id)
         balances = await self._ledger.balances(tutor.id)
         accounts = [
-            Account(email, names.get(email), balances.get(email, 0))
-            for email in names.keys() | balances.keys()
+            Account(student.id, student.account, student.name, balances.get(student.account, 0))
+            for student in await self._students.students(tutor.id)
+            if student.name is not None or student.account in balances
         ]
         return sorted(accounts, key=lambda account: (account.name or account.email).casefold())
+
+
+class OpenAccount:
+    """The account for an address, opened first if the tutor has none for it.
+
+    This is how a tutor reaches a student who has not booked anything yet:
+    selling a package before the first lesson is common. The address is given
+    once, here; from then on the id that comes back stands for it.
+    """
+
+    def __init__(self, ledger: Ledger, students: StudentDirectory, clock: Clock) -> None:
+        self._ledger = ledger
+        self._students = students
+        self._clock = clock
+
+    async def execute(self, tutor: Tutor, email: str) -> Account:
+        student = await self._students.enrol(tutor.id, account_key(email), self._clock.now())
+        entries = await self._ledger.entries(tutor.id, student.account)
+        return Account(student.id, student.account, student.name, balance(entries))
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +169,8 @@ class StatementView:
     statement: Statement
     # What is left today, which is the closing balance only for the current month.
     balance_now: int
+    # No lesson and no entry, in any month: so far the account is only an address.
+    nothing_recorded: bool
 
 
 def _first_of_month(day: date) -> date:
@@ -147,19 +197,21 @@ class ShowStatement:
         # A month is a local idea: it starts at midnight on the tutor's clock.
         period = TimeRange(start_of_day(first, tz), start_of_day(following, tz))
 
-        entries = await self._ledger.entries(tutor.id, account)
-        names = await self._students.students(tutor.id)
-        if not entries and account not in names:
+        student = await self._students.find_student(tutor.id, account)
+        if student is None:
             raise StatementNotFoundError
+        entries = await self._ledger.entries(tutor.id, account)
         return StatementView(
             tutor=tutor,
             account=account,
-            student_name=names.get(account),
+            student_name=student.name,
             month=first,
             previous=_first_of_month(first - timedelta(days=1)),
             next=following,
             statement=statement_for(entries, period),
             balance_now=balance(entries),
+            # A student has a name from their first booking on.
+            nothing_recorded=not entries and student.name is None,
         )
 
 

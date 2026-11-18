@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 
-import { fetchAccounts } from "../../api/client";
+import { ApiError, fetchAccounts, openAccount } from "../../api/client";
 import { formatMinutes } from "../../dates";
 import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton, TextField } from "../../ui";
@@ -10,7 +10,9 @@ import { initials } from "../panel/PanelLayout";
 
 export const ACCOUNTS_KEY = ["accounts"] as const;
 
-export const studentPath = (email: string) => `/panel/students/${encodeURIComponent(email)}`;
+/** A student's page. Named by id: an address here would end up in server logs. */
+export const studentPath = (studentId: string) =>
+  `/panel/students/${encodeURIComponent(studentId)}`;
 
 /** Everyone the tutor teaches, with the lesson time each has paid for and not used. */
 export function StudentsPage() {
@@ -51,12 +53,12 @@ export function StudentsPage() {
           {data.map((account) => {
             const owes = account.balance_minutes < 0;
             return (
-              <li key={account.email} className="account">
+              <li key={account.id} className="account">
                 <span className="avatar" aria-hidden="true">
                   {initials(account.name ?? account.email)}
                 </span>
                 <div className="account__who">
-                  <Link className="link account__name" to={studentPath(account.email)}>
+                  <Link className="link account__name" to={studentPath(account.id)}>
                     {account.name ?? account.email}
                   </Link>
                   {account.name && <p className="page__meta">{account.email}</p>}
@@ -84,6 +86,20 @@ function OpenAccount() {
   const input = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [problem, setProblem] = useState<string>();
+  // The address goes to the server in the body of a request, and the page that
+  // opens is named by the id that comes back.
+  const open = useMutation({
+    mutationFn: openAccount,
+    onSuccess: (account) => void navigate(studentPath(account.id)),
+    onError: (error) => {
+      // The server checks addresses more strictly than the pattern above.
+      if (error instanceof ApiError && error.status === 422) {
+        setProblem(t.emailInvalid);
+        input.current?.focus();
+      }
+    },
+  });
+  const failed = open.isError && !(open.error instanceof ApiError && open.error.status === 422);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -93,7 +109,8 @@ function OpenAccount() {
       input.current?.focus();
       return;
     }
-    void navigate(studentPath(address));
+    setProblem(undefined);
+    open.mutate(address);
   }
 
   return (
@@ -108,11 +125,19 @@ function OpenAccount() {
         inputMode="email"
         value={email}
         error={problem}
-        onChange={(event) => setEmail(event.target.value)}
+        onChange={(event) => {
+          setEmail(event.target.value);
+          open.reset();
+        }}
       />
-      <Button type="submit" variant="secondary">
-        {t.open}
+      <Button type="submit" variant="secondary" busy={open.isPending}>
+        {open.isPending ? t.opening : t.open}
       </Button>
+      {failed && (
+        <p className="form__error form__error--row" role="alert">
+          {t.openFailed}
+        </p>
+      )}
     </form>
   );
 }

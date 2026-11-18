@@ -83,6 +83,9 @@ class BookingRepository(Protocol):
 
         ``confirmation`` is queued for sending as part of the same change: it
         is queued if and only if the booking is stored. See ADR 0007.
+
+        The student is enrolled in the ``StudentDirectory`` as part of the same
+        change too, so nobody has a lesson without an id. See ADR 0010.
         """
         ...
 
@@ -108,13 +111,49 @@ class SeriesRepository(Protocol):
         A lesson that overlaps one already booked is left out when
         ``skip_conflicts`` is set. Otherwise nothing at all is stored and
         ``SeriesConflictError`` names the days in the way.
+
+        If anything is stored, the student is enrolled with it, as in ``add``.
         """
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class StudentRecord:
+    """A student as the directory knows them."""
+
+    # Stands for the address wherever the address must not appear. See ADR 0010.
+    id: UUID
+    tutor_id: UUID
+    # The address in lower case: what bookings and the ledger file the student under.
+    account: str
+    # The name on the student's latest booking. None until they have one.
+    name: str | None
+
+
 class StudentDirectory(Protocol):
-    async def students(self, tutor_id: UUID) -> dict[str, str]:
-        """Everyone who has had a lesson with the tutor: account key to latest name."""
+    """Who a tutor teaches, each under an id that is safe to put in an address.
+
+    A student is in the directory from their first booking: ``add`` and
+    ``add_series`` enrol them as part of storing the lesson. A tutor can also
+    enrol an address by hand, before any lesson. See ADR 0010.
+    """
+
+    async def students(self, tutor_id: UUID) -> list[StudentRecord]:
+        """Everyone the tutor has enrolled or taught, in no particular order."""
+        ...
+
+    async def get_student(self, student_id: UUID) -> StudentRecord | None: ...
+
+    async def find_student(self, tutor_id: UUID, account: str) -> StudentRecord | None:
+        """The tutor's student with this address, if they have one."""
+        ...
+
+    async def enrol(self, tutor_id: UUID, account: str, now: datetime) -> StudentRecord:
+        """The tutor's student with this address, added first if there was none.
+
+        Enrolling the same address twice, even at the same moment, leaves one
+        student, and both callers get that one.
+        """
         ...
 
 

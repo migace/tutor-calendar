@@ -99,7 +99,7 @@ export function App() {
           <Route index element={<WeekPage />} />
           <Route path="regulars" element={<SeriesPage />} />
           <Route path="students" element={<StudentsPage />} />
-          <Route path="students/:email" element={<StudentPage />} />
+          <Route path="students/:studentId" element={<StudentPage />} />
           <Route path="availability" element={<AvailabilityPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

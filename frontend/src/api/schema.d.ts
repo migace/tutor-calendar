@@ -229,14 +229,18 @@ export interface paths {
         /** The tutor's students and the lesson time each has left */
         get: operations["list_accounts_api_v1_me_students_get"];
         put?: never;
-        post?: never;
+        /**
+         * The student with an address, added if the tutor has none
+         * @description How to reach a student who has not booked anything yet. The address travels in the body, once; every other request names the student by the id returned here, so that addresses of pages and requests never contain an e-mail address. Asking again for the same address returns the same student.
+         */
+        post: operations["open_account_api_v1_me_students_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/me/students/{email}/entries/{entry_id}": {
+    "/api/v1/me/students/{student_id}/entries/{entry_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -248,7 +252,7 @@ export interface paths {
          * Record time a student bought, or a correction
          * @description Entries are permanent: a mistake is corrected by another entry. The client chooses the id, and sending the same entry again changes nothing.
          */
-        put: operations["record_entry_api_v1_me_students__email__entries__entry_id__put"];
+        put: operations["record_entry_api_v1_me_students__student_id__entries__entry_id__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -256,7 +260,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/me/students/{email}/statement": {
+    "/api/v1/me/students/{student_id}/statement": {
         parameters: {
             query?: never;
             header?: never;
@@ -264,7 +268,7 @@ export interface paths {
             cookie?: never;
         };
         /** One month of a student's account */
-        get: operations["tutor_statement_api_v1_me_students__email__statement_get"];
+        get: operations["tutor_statement_api_v1_me_students__student_id__statement_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -382,6 +386,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountIn */
+        AccountIn: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** AccountOut */
         AccountOut: {
             /**
@@ -391,6 +403,12 @@ export interface components {
             balance_minutes: number;
             /** Email */
             email: string;
+            /**
+             * Id
+             * Format: uuid
+             * @description Stands for the student in addresses, where an e-mail must not go
+             */
+            id: string;
             /**
              * Name
              * @description From the student's latest booking, if they have one
@@ -742,6 +760,11 @@ export interface components {
              * Format: date
              */
             next: string;
+            /**
+             * Nothing Recorded
+             * @description True while the student has no lesson and no entry in any month
+             */
+            nothing_recorded: boolean;
             /**
              * Opening Minutes
              * @description Balance at the start of the month
@@ -1619,13 +1642,64 @@ export interface operations {
             };
         };
     };
-    record_entry_api_v1_me_students__email__entries__entry_id__put: {
+    open_account_api_v1_me_students_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests from this address. `Retry-After` says how many seconds to wait. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    record_entry_api_v1_me_students__student_id__entries__entry_id__put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                email: string;
                 entry_id: string;
+                student_id: string;
             };
             cookie?: never;
         };
@@ -1653,6 +1727,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorOut"];
                 };
             };
+            /** @description This tutor has no such student */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
             /** @description The entry makes no sense, or the id means another entry */
             422: {
                 headers: {
@@ -1671,7 +1754,7 @@ export interface operations {
             };
         };
     };
-    tutor_statement_api_v1_me_students__email__statement_get: {
+    tutor_statement_api_v1_me_students__student_id__statement_get: {
         parameters: {
             query?: {
                 /** @description Any day of the month to show; defaults to the current month */
@@ -1679,7 +1762,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                email: string;
+                student_id: string;
             };
             cookie?: never;
         };

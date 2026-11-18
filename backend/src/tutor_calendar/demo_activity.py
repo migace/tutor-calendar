@@ -84,7 +84,7 @@ class _Seeder:
 
     async def package(self, student: Student, minutes: int, days_ago: int, note: str) -> None:
         bought = FixedClock(self.now - days_ago * _DAY)
-        await RecordEntry(self.ledger, bought).execute(
+        await RecordEntry(self.ledger, self.bookings, bought).execute(
             self.tutor,
             self._id(f"package-{student.email}-{days_ago}"),
             student.email,

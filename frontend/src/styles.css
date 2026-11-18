@@ -1794,6 +1794,10 @@ button.shell__link:disabled {
   margin-top: 0;
 }
 
+.form--inline .form__error--row {
+  flex-basis: 100%;
+}
+
 .accounts {
   margin: 0;
   padding: 0;

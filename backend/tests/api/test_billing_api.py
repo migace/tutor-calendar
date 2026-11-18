@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +22,13 @@ def tutor(client: TestClient, mailer: InMemoryMailer) -> TestClient:
     return client
 
 
+def student_id(client: TestClient, email: str = ANNA) -> str:
+    """The id that stands for an address. Asking is also what opens the account."""
+    response = client.post(STUDENTS, json={"email": email})
+    assert response.status_code == 200, response.text
+    return str(response.json()["id"])
+
+
 def record(
     client: TestClient,
     minutes: int = 600,
@@ -31,13 +38,13 @@ def record(
     email: str = ANNA,
 ) -> Response:
     return client.put(
-        f"{STUDENTS}/{email}/entries/{entry_id or uuid4()}",
+        f"{STUDENTS}/{student_id(client, email)}/entries/{entry_id or uuid4()}",
         json={"kind": kind, "minutes": minutes, "note": note},
     )
 
 
 def statement(client: TestClient, email: str = ANNA, **params: str) -> dict[str, Any]:
-    response = client.get(f"{STUDENTS}/{email}/statement", params=params)
+    response = client.get(f"{STUDENTS}/{student_id(client, email)}/statement", params=params)
     assert response.status_code == 200, response.text
     body: dict[str, Any] = response.json()
     return body
@@ -54,7 +61,9 @@ def test_a_package_shows_on_the_account_and_on_the_statement(tutor: TestClient) 
         "Package of 10",
         None,
     )
-    assert tutor.get(STUDENTS).json() == [{"email": ANNA, "name": None, "balance_minutes": 600}]
+    assert tutor.get(STUDENTS).json() == [
+        {"id": student_id(tutor), "email": ANNA, "name": None, "balance_minutes": 600}
+    ]
 
     november = statement(tutor)
     assert (november["month"], november["previous"], november["next"]) == (
@@ -66,6 +75,62 @@ def test_a_package_shows_on_the_account_and_on_the_statement(tutor: TestClient) 
     assert november["balance_minutes"] == 600
     assert november["entries"] == [entry]
     assert (november["tutor_name"], november["timezone"]) == ("Demo Tutor", "Europe/Warsaw")
+    assert november["nothing_recorded"] is False
+
+
+def test_an_account_is_opened_by_address_and_named_by_id_from_then_on(tutor: TestClient) -> None:
+    opened = tutor.post(STUDENTS, json={"email": "Anna@Example.com"})
+
+    assert opened.status_code == 200
+    account = opened.json()
+    assert UUID(account["id"])
+    assert account == {"id": account["id"], "email": ANNA, "name": None, "balance_minutes": 0}
+    # Asking again, however the address is written, is the same student.
+    assert student_id(tutor, "ANNA@example.com") == account["id"]
+    # Not on the list until something is recorded: the address may be a typo.
+    assert tutor.get(STUDENTS).json() == []
+
+    # So far there is only an address. The statement says so instead of being missing.
+    november = statement(tutor)
+    assert november["nothing_recorded"] is True
+    assert (november["student_email"], november["student_name"], november["entries"]) == (
+        ANNA,
+        None,
+        [],
+    )
+
+
+@pytest.mark.parametrize("email", ["anna", "", "anna@", "a b@example.com"])
+def test_something_that_is_not_an_address_opens_no_account(tutor: TestClient, email: str) -> None:
+    assert tutor.post(STUDENTS, json={"email": email}).status_code == 422
+    assert tutor.get(STUDENTS).json() == []
+
+
+def test_a_student_is_never_named_by_address_in_a_path(tutor: TestClient) -> None:
+    record(tutor)
+
+    # An address where the id belongs is not a student, whoever it belongs to.
+    assert tutor.get(f"{STUDENTS}/{ANNA}/statement").status_code == 422
+    assert (
+        tutor.put(
+            f"{STUDENTS}/{ANNA}/entries/{uuid4()}", json={"kind": "purchase", "minutes": 60}
+        ).status_code
+        == 422
+    )
+    paths = tutor.get("/openapi.json").json()["paths"]
+    assert not [path for path in paths if "email" in path]
+
+
+def test_an_id_that_is_nobodys_is_not_found(tutor: TestClient) -> None:
+    record(tutor)
+    nobody = uuid4()
+
+    assert tutor.get(f"{STUDENTS}/{nobody}/statement").status_code == 404
+    response = tutor.put(
+        f"{STUDENTS}/{nobody}/entries/{uuid4()}", json={"kind": "purchase", "minutes": 60}
+    )
+    assert response.status_code == 404
+    assert [account["balance_minutes"] for account in tutor.get(STUDENTS).json()] == [600]
 
 
 def test_recording_the_same_entry_twice_credits_it_once(tutor: TestClient) -> None:
@@ -113,10 +178,10 @@ def test_a_correction_is_a_new_entry_and_the_old_one_stays(tutor: TestClient) ->
     ],
 )
 def test_entries_that_make_no_sense_are_rejected(tutor: TestClient, body: dict[str, Any]) -> None:
-    response = tutor.put(f"{STUDENTS}/{ANNA}/entries/{uuid4()}", json=body)
+    response = tutor.put(f"{STUDENTS}/{student_id(tutor)}/entries/{uuid4()}", json=body)
 
     assert response.status_code == 422
-    assert tutor.get(STUDENTS).json() == []
+    assert statement(tutor)["nothing_recorded"] is True
 
 
 def test_a_student_with_a_lesson_is_listed_by_name_before_they_buy_anything(
@@ -132,10 +197,17 @@ def test_a_student_with_a_lesson_is_listed_by_name_before_they_buy_anything(
         headers={"Idempotency-Key": uuid4().hex},
     )
 
-    assert tutor.get(STUDENTS).json() == [
-        {"email": ANNA, "name": "Anna Nowak", "balance_minutes": 0}
-    ]
-    assert statement(tutor)["student_name"] == "Anna Nowak"
+    # Booking is what enrolled her: the id was there before anyone asked for it.
+    [account] = tutor.get(STUDENTS).json()
+    assert account == {
+        "id": account["id"],
+        "email": ANNA,
+        "name": "Anna Nowak",
+        "balance_minutes": 0,
+    }
+    assert student_id(tutor) == account["id"]
+    november = statement(tutor)
+    assert (november["student_name"], november["nothing_recorded"]) == ("Anna Nowak", False)
 
 
 def test_any_day_selects_its_month(tutor: TestClient) -> None:
@@ -150,7 +222,8 @@ def test_any_day_selects_its_month(tutor: TestClient) -> None:
         0,
     )
     assert (december["month"], december["opening_minutes"]) == ("2026-12-01", 600)
-    assert tutor.get(f"{STUDENTS}/{ANNA}/statement", params={"month": "soon"}).status_code == 422
+    anna = student_id(tutor)
+    assert tutor.get(f"{STUDENTS}/{anna}/statement", params={"month": "soon"}).status_code == 422
 
 
 def test_a_parent_reads_the_statement_with_the_shared_link(
@@ -203,13 +276,21 @@ def test_tutors_do_not_see_each_others_accounts(client: TestClient, mailer: InMe
     sign_in(client, mailer)
     record(client)
     token = statement(client)["share_token"]
+    demo_tutors_anna = student_id(client)
 
     sign_in(client, mailer, "ewa@example.com")
 
     assert client.get(STUDENTS).json() == []
-    assert client.get(f"{STUDENTS}/{ANNA}/statement").status_code == 404
-    # Ewa's own account for the same address is a different account.
+    # Holding the id is not enough: to Ewa this student does not exist.
+    assert client.get(f"{STUDENTS}/{demo_tutors_anna}/statement").status_code == 404
+    stolen = client.put(
+        f"{STUDENTS}/{demo_tutors_anna}/entries/{uuid4()}",
+        json={"kind": "adjustment", "minutes": -600, "note": "not mine"},
+    )
+    assert stolen.status_code == 404
+    # Ewa's own account for the same address is a different student.
     record(client, minutes=90)
+    assert student_id(client) != demo_tutors_anna
     assert statement(client)["balance_minutes"] == 90
     assert statement(client)["share_token"] != token
 
@@ -218,11 +299,14 @@ def test_tutors_do_not_see_each_others_accounts(client: TestClient, mailer: InMe
     ("method", "path"),
     [
         ("GET", STUDENTS),
-        ("GET", f"{STUDENTS}/{ANNA}/statement"),
-        ("PUT", f"{STUDENTS}/{ANNA}/entries/{uuid4()}"),
+        ("POST", STUDENTS),
+        ("GET", f"{STUDENTS}/{uuid4()}/statement"),
+        ("PUT", f"{STUDENTS}/{uuid4()}/entries/{uuid4()}"),
     ],
 )
 def test_accounts_require_a_session(client: TestClient, method: str, path: str) -> None:
-    body = {"kind": "purchase", "minutes": 60} if method == "PUT" else None
+    body: dict[str, Any] | None = {"GET": None, "POST": {"email": ANNA}}.get(
+        method, {"kind": "purchase", "minutes": 60}
+    )
 
     assert client.request(method, path, json=body).status_code == 401

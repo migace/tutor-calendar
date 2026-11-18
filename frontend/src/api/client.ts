@@ -232,7 +232,22 @@ export async function fetchAccounts(signal?: AbortSignal): Promise<Account[]> {
   return parse<Account[]>(response);
 }
 
-const studentUrl = (email: string) => `/api/v1/me/students/${encodeURIComponent(email)}`;
+/**
+ * The student with an address, added if the tutor has none. The only request
+ * that names a student by address, and it does so in the body: everything else
+ * uses the id that comes back, so no address of a page or request holds an email.
+ */
+export async function openAccount(email: string): Promise<Account> {
+  const response = await fetch("/api/v1/me/students", {
+    method: "POST",
+    headers: JSON_BODY,
+    body: JSON.stringify({ email }),
+  });
+  return parse<Account>(response);
+}
+
+const studentUrl = (studentId: string) =>
+  `/api/v1/me/students/${encodeURIComponent(studentId)}`;
 const monthQuery = (month: string | null) => (month ? `?month=${encodeURIComponent(month)}` : "");
 
 /**
@@ -240,11 +255,11 @@ const monthQuery = (month: string | null) => (month ? `?month=${encodeURICompone
  * are permanent; sending the same one again with the same id changes nothing.
  */
 export async function recordEntry(
-  email: string,
+  studentId: string,
   entryId: string,
   entry: NewEntry,
 ): Promise<LedgerEntry> {
-  const response = await fetch(`${studentUrl(email)}/entries/${encodeURIComponent(entryId)}`, {
+  const response = await fetch(`${studentUrl(studentId)}/entries/${encodeURIComponent(entryId)}`, {
     method: "PUT",
     headers: JSON_BODY,
     body: JSON.stringify(entry),
@@ -254,11 +269,11 @@ export async function recordEntry(
 
 /** One month ("YYYY-MM-DD", any day of it) of a student's account, for their tutor. */
 export async function fetchStatement(
-  email: string,
+  studentId: string,
   month: string | null,
   signal?: AbortSignal,
 ): Promise<Statement> {
-  const response = await fetch(`${studentUrl(email)}/statement${monthQuery(month)}`, {
+  const response = await fetch(`${studentUrl(studentId)}/statement${monthQuery(month)}`, {
     headers: { Accept: "application/json" },
     signal,
   });

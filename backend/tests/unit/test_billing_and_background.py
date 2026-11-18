@@ -15,13 +15,19 @@ from tutor_calendar.adapters.in_memory_tutors import InMemoryTutorRepository
 from tutor_calendar.adapters.mail import InMemoryMailer
 from tutor_calendar.application.background import DeliverOutbox, SendReminders, SettleLessons
 from tutor_calendar.application.billing import (
+    FindStudent,
     ListAccounts,
+    OpenAccount,
     RecordEntry,
     ShareStatement,
     ShowStatement,
 )
 from tutor_calendar.application.book_lesson import BookingResult, BookLesson
-from tutor_calendar.application.errors import InvalidEntryError, StatementNotFoundError
+from tutor_calendar.application.errors import (
+    InvalidEntryError,
+    StatementNotFoundError,
+    StudentNotFoundError,
+)
 from tutor_calendar.application.lessons import ChangeOwnLesson, ManageBooking
 from tutor_calendar.application.ports import Email
 from tutor_calendar.demo import demo_tutor
@@ -56,7 +62,7 @@ class Scenario:
         return await use_case.execute("demo", start, student, f"key-{uuid4()}")
 
     async def buy(self, email: str, minutes: int, note: str = "Package of 10") -> None:
-        record = RecordEntry(self.ledger, self.clock)
+        record = RecordEntry(self.ledger, self.bookings, self.clock)
         await record.execute(self.tutor, uuid4(), email, EntryKind.PURCHASE, minutes, note)
 
     async def settle(self) -> int:
@@ -89,7 +95,7 @@ class TestRecordingTime:
         assert (account.email, account.name, account.balance) == ("anna@example.com", None, 600)
 
     async def test_recording_the_same_entry_again_changes_nothing(self, scenario: Scenario) -> None:
-        record = RecordEntry(scenario.ledger, scenario.clock)
+        record = RecordEntry(scenario.ledger, scenario.bookings, scenario.clock)
         entry_id = uuid4()
         package = ("anna@example.com", EntryKind.PURCHASE, 600, "Package of 10")
         first = await record.execute(scenario.tutor, entry_id, *package)
@@ -100,7 +106,7 @@ class TestRecordingTime:
         assert await scenario.balance_of("anna@example.com") == 600
 
     async def test_an_id_cannot_be_reused_for_a_different_entry(self, scenario: Scenario) -> None:
-        record = RecordEntry(scenario.ledger, scenario.clock)
+        record = RecordEntry(scenario.ledger, scenario.bookings, scenario.clock)
         entry_id = uuid4()
         await record.execute(
             scenario.tutor, entry_id, "anna@example.com", EntryKind.PURCHASE, 600, ""
@@ -113,7 +119,7 @@ class TestRecordingTime:
         assert await scenario.balance_of("anna@example.com") == 600
 
     async def test_a_mistake_is_corrected_by_another_entry(self, scenario: Scenario) -> None:
-        record = RecordEntry(scenario.ledger, scenario.clock)
+        record = RecordEntry(scenario.ledger, scenario.bookings, scenario.clock)
         await scenario.buy("anna@example.com", 600)
 
         await record.execute(
@@ -141,7 +147,7 @@ class TestRecordingTime:
     async def test_entries_that_make_no_sense_are_refused(
         self, scenario: Scenario, kind: EntryKind, minutes: int, note: str
     ) -> None:
-        record = RecordEntry(scenario.ledger, scenario.clock)
+        record = RecordEntry(scenario.ledger, scenario.bookings, scenario.clock)
 
         with pytest.raises(InvalidEntryError):
             await record.execute(scenario.tutor, uuid4(), "anna@example.com", kind, minutes, note)
@@ -163,6 +169,55 @@ class TestRecordingTime:
             await ListAccounts(scenario.ledger, scenario.bookings).execute(scenario.other_tutor)
             == []
         )
+
+
+class TestStudentsHaveIds:
+    async def test_an_account_can_be_opened_before_anything_is_recorded(
+        self, scenario: Scenario
+    ) -> None:
+        open_account = OpenAccount(scenario.ledger, scenario.bookings, scenario.clock)
+
+        opened = await open_account.execute(scenario.tutor, " Anna@Example.com ")
+
+        assert (opened.email, opened.name, opened.balance) == ("anna@example.com", None, 0)
+        # Not on the list until something is recorded: the address may be a typo.
+        assert await ListAccounts(scenario.ledger, scenario.bookings).execute(scenario.tutor) == []
+        view = await scenario.statements.execute(scenario.tutor, "anna@example.com", None)
+        assert view.nothing_recorded
+
+    async def test_opening_an_account_that_exists_shows_it_as_it_is(
+        self, scenario: Scenario
+    ) -> None:
+        await scenario.book()
+        await scenario.buy("anna@example.com", 600)
+        open_account = OpenAccount(scenario.ledger, scenario.bookings, scenario.clock)
+
+        first = await open_account.execute(scenario.tutor, "anna@example.com")
+        again = await open_account.execute(scenario.tutor, "ANNA@example.com")
+
+        assert again == first
+        assert (first.name, first.balance) == ("Anna Nowak", 600)
+        view = await scenario.statements.execute(scenario.tutor, "anna@example.com", None)
+        assert not view.nothing_recorded
+
+    async def test_whoever_has_an_entry_has_an_id(self, scenario: Scenario) -> None:
+        # Recorded straight by address, the way the demo data is seeded.
+        await scenario.buy("zofia@example.com", 120)
+
+        [account] = await ListAccounts(scenario.ledger, scenario.bookings).execute(scenario.tutor)
+
+        found = await FindStudent(scenario.bookings).execute(scenario.tutor, account.id)
+        assert (found.id, found.account) == (account.id, "zofia@example.com")
+
+    async def test_a_tutor_finds_only_their_own_students(self, scenario: Scenario) -> None:
+        open_account = OpenAccount(scenario.ledger, scenario.bookings, scenario.clock)
+        anna = await open_account.execute(scenario.tutor, "anna@example.com")
+        find = FindStudent(scenario.bookings)
+
+        with pytest.raises(StudentNotFoundError):
+            await find.execute(scenario.other_tutor, anna.id)
+        with pytest.raises(StudentNotFoundError):
+            await find.execute(scenario.tutor, uuid4())
 
 
 class TestSettlingLessons:

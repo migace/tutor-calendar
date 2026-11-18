@@ -53,6 +53,7 @@ const STATEMENT: Statement = {
   month: "2026-11-01",
   previous: "2026-10-01",
   next: "2026-12-01",
+  nothing_recorded: false,
   opening_minutes: 600,
   closing_minutes: 480,
   balance_minutes: 480,

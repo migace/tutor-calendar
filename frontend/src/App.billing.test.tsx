@@ -18,6 +18,10 @@ const PROFILE: Profile = {
   lesson_minutes: 60,
 };
 const signedIn = () => json(200, PROFILE);
+// Students are named by id wherever an address would otherwise be in an address.
+const ANNA_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+const BARTEK_ID = "bbbbbbbb-0000-4000-8000-000000000002";
+const NEW_ID = "cccccccc-0000-4000-8000-000000000003";
 
 const PACKAGE: LedgerEntry = {
   id: "11111111-0000-4000-8000-000000000001",
@@ -50,6 +54,7 @@ function statement(changes: Partial<Statement> = {}): Statement {
     closing_minutes: 570,
     balance_minutes: 570,
     entries: [PACKAGE, LESSON],
+    nothing_recorded: false,
     share_token: "c2hhcmU.signature",
     ...changes,
   };
@@ -93,8 +98,8 @@ describe("formatMinutes", () => {
 describe("students", () => {
   it("lists each student with the time they have left, or owe", async () => {
     const accounts: Account[] = [
-      { email: "anna@example.com", name: "Anna Nowak", balance_minutes: 570 },
-      { email: "bartek@example.com", name: null, balance_minutes: -60 },
+      { id: ANNA_ID, email: "anna@example.com", name: "Anna Nowak", balance_minutes: 570 },
+      { id: BARTEK_ID, email: "bartek@example.com", name: null, balance_minutes: -60 },
     ];
     mockApi({ "GET /api/v1/me": signedIn, "GET /api/v1/me/students": () => json(200, accounts) });
 
@@ -102,10 +107,7 @@ describe("students", () => {
 
     const anna = (await screen.findByRole("link", { name: "Anna Nowak" })).closest("li")!;
     expect(anna).toHaveTextContent("9 h 30 min left");
-    expect(within(anna).getByRole("link")).toHaveAttribute(
-      "href",
-      "/panel/students/anna%40example.com",
-    );
+    expect(within(anna).getByRole("link")).toHaveAttribute("href", `/panel/students/${ANNA_ID}`);
     // Without a name, the address stands in for it.
     const bartek = screen.getByRole("link", { name: "bartek@example.com" }).closest("li")!;
     expect(bartek).toHaveTextContent("1 h to pay for");
@@ -117,7 +119,7 @@ describe("a student's account", () => {
   function openAccount(replies: (() => Response | Promise<Response>)[] = []) {
     const api = mockApi({
       "GET /api/v1/me": signedIn,
-      "GET /api/v1/me/students/anna%40example.com/statement": (call) =>
+      [`GET /api/v1/me/students/${ANNA_ID}/statement`]: (call) =>
         json(
           200,
           call.url.includes("month=2026-12-01")
@@ -137,7 +139,7 @@ describe("a student's account", () => {
       return base(input, init);
     });
     const puts = () => api.calls.filter((call) => call.method === "PUT");
-    return { api, puts, user: renderApp("/panel/students/anna%40example.com") };
+    return { api, puts, user: renderApp(`/panel/students/${ANNA_ID}`) };
   }
 
   it("shows the month as a statement: opening balance, entries, closing balance", async () => {
@@ -178,7 +180,7 @@ describe("a student's account", () => {
     expect(await screen.findByText("Recorded +10 h.")).toBeVisible();
     expect(puts()).toHaveLength(1);
     expect(puts()[0]!.url).toMatch(
-      /^\/api\/v1\/me\/students\/anna%40example\.com\/entries\/[0-9a-f-]{36}$/,
+      new RegExp(`^/api/v1/me/students/${ANNA_ID}/entries/[0-9a-f-]{36}$`),
     );
     expect(puts()[0]!.body).toEqual({ kind: "purchase", minutes: 450, note: "Package of 10" });
     expect(screen.getByLabelText("Hours")).toHaveValue("");
@@ -250,12 +252,28 @@ describe("a student's account", () => {
     );
   });
 
+  const NEW_ACCOUNT: Account = {
+    id: NEW_ID,
+    email: "new@example.com",
+    name: null,
+    balance_minutes: 0,
+  };
+  const nothingYet = statement({
+    student_email: "new@example.com",
+    student_name: null,
+    opening_minutes: 0,
+    closing_minutes: 0,
+    balance_minutes: 0,
+    entries: [],
+    nothing_recorded: true,
+  });
+
   it("lets the tutor open an account for someone who has not booked yet", async () => {
-    mockApi({
+    const api = mockApi({
       "GET /api/v1/me": signedIn,
       "GET /api/v1/me/students": () => json(200, []),
-      "GET /api/v1/me/students/new%40example.com/statement": () =>
-        json(404, { detail: "no such statement" }),
+      "POST /api/v1/me/students": () => json(200, NEW_ACCOUNT),
+      [`GET /api/v1/me/students/${NEW_ID}/statement`]: () => json(200, nothingYet),
     });
     const user = renderApp("/panel/students");
 
@@ -268,6 +286,95 @@ describe("a student's account", () => {
     ).toBeVisible();
     // The form that records time is there, which is what opens the account.
     expect(screen.getByRole("button", { name: "Record" })).toBeVisible();
+    // The address was sent once, in the body of a request. No address of a
+    // request holds it, so it is in nobody's access log.
+    expect(api.callsTo("POST /api/v1/me/students").map((call) => call.body)).toEqual([
+      { email: "new@example.com" },
+    ]);
+    expect(api.calls.filter((call) => /@|%40|example/.test(call.url))).toEqual([]);
+  });
+
+  it("records the first package for a new student under their id", async () => {
+    const api = mockApi({
+      "GET /api/v1/me": signedIn,
+      "GET /api/v1/me/students": () => json(200, []),
+      [`GET /api/v1/me/students/${NEW_ID}/statement`]: () => json(200, nothingYet),
+    });
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (init?.method !== "PUT") return base(input, init);
+      api.calls.push({ method: "PUT", url, body: JSON.parse(String(init.body)) });
+      return json(200, { ...PACKAGE, minutes: 300 });
+    });
+    const user = renderApp(`/panel/students/${NEW_ID}`);
+
+    await user.type(await screen.findByLabelText("Hours"), "5");
+    await user.click(screen.getByRole("button", { name: "Record" }));
+
+    expect(await screen.findByText("Recorded +5 h.")).toBeVisible();
+    const [put] = api.calls.filter((call) => call.method === "PUT");
+    expect(put!.url.startsWith(`/api/v1/me/students/${NEW_ID}/entries/`)).toBe(true);
+  });
+
+  it("says so when the account could not be opened, and lets the tutor try again", async () => {
+    mockApi({
+      "GET /api/v1/me": signedIn,
+      "GET /api/v1/me/students": () => json(200, []),
+      "POST /api/v1/me/students": [() => json(500, {}), () => json(200, NEW_ACCOUNT)],
+      [`GET /api/v1/me/students/${NEW_ID}/statement`]: () => json(200, nothingYet),
+    });
+    const user = renderApp("/panel/students");
+
+    await user.type(await screen.findByLabelText("Find or add a student by email"), "new@example.com");
+    await user.click(screen.getByRole("button", { name: "Open account" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We could not open the account. Try again.",
+    );
+    expect(screen.getByRole("heading", { name: "Students" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Open account" }));
+
+    expect(await screen.findByRole("heading", { name: "new@example.com" })).toBeVisible();
+  });
+
+  it("marks the address when the server does not take it for one", async () => {
+    mockApi({
+      "GET /api/v1/me": signedIn,
+      "GET /api/v1/me/students": () => json(200, []),
+      "POST /api/v1/me/students": () => json(422, { detail: [] }),
+    });
+    const user = renderApp("/panel/students");
+
+    await user.type(await screen.findByLabelText("Find or add a student by email"), "a@b.c");
+    await user.click(screen.getByRole("button", { name: "Open account" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Find or add a student by email")).toBeInvalid(),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [404, `/panel/students/${NEW_ID}`],
+    // An address from before students had ids: the server does not take it for an id.
+    [422, "/panel/students/anna%40example.com"],
+  ])("says there is no such student when the server answers %i", async (status, path) => {
+    mockApi({
+      "GET /api/v1/me": signedIn,
+      [`GET /api/v1/me/students/${path.split("/").pop()}/statement`]: () =>
+        json(status, { detail: "no such student" }),
+    });
+
+    renderApp(path);
+
+    expect(await screen.findByRole("heading", { name: "There is no such student" })).toBeVisible();
+    expect(screen.getByRole("link", { name: /All students/ })).toHaveAttribute(
+      "href",
+      "/panel/students",
+    );
+    expect(screen.queryByRole("button", { name: "Record" })).not.toBeInTheDocument();
   });
 
   it("does not go looking for something that is not an address", async () => {

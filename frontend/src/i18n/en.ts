@@ -274,6 +274,8 @@ export const en = {
     findHint: "To record a package for someone who has not booked a lesson yet.",
     emailInvalid: "Enter an email address like name@example.com.",
     open: "Open account",
+    opening: "Opening…",
+    openFailed: "We could not open the account. Try again.",
   },
 
   student: {
@@ -281,6 +283,8 @@ export const en = {
     loading: "Loading the account…",
     loadFailedTitle: "We could not load the account",
     all: "All students",
+    missingTitle: "There is no such student",
+    missingBody: "The link may be an old one. Your students are all on the list.",
     nothingTitle: "Nothing is recorded for this address yet",
     nothingBody:
       "Record lesson time below to open an account for this student. Check the address first: it is how their lessons will be matched to the account.",

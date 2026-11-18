@@ -1,6 +1,21 @@
 {
   "components": {
     "schemas": {
+      "AccountIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "AccountIn",
+        "type": "object"
+      },
       "AccountOut": {
         "properties": {
           "balance_minutes": {
@@ -10,6 +25,12 @@
           },
           "email": {
             "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "description": "Stands for the student in addresses, where an e-mail must not go",
+            "format": "uuid",
+            "title": "Id",
             "type": "string"
           },
           "name": {
@@ -26,6 +47,7 @@
           }
         },
         "required": [
+          "id",
           "email",
           "name",
           "balance_minutes"
@@ -728,6 +750,11 @@
             "title": "Next",
             "type": "string"
           },
+          "nothing_recorded": {
+            "description": "True while the student has no lesson and no entry in any month",
+            "title": "Nothing Recorded",
+            "type": "boolean"
+          },
           "opening_minutes": {
             "description": "Balance at the start of the month",
             "title": "Opening Minutes",
@@ -786,6 +813,7 @@
           "closing_minutes",
           "balance_minutes",
           "entries",
+          "nothing_recorded",
           "share_token"
         ],
         "title": "StatementOut",
@@ -1844,22 +1872,73 @@
         "tags": [
           "tutor panel"
         ]
-      }
-    },
-    "/api/v1/me/students/{email}/entries/{entry_id}": {
-      "put": {
-        "description": "Entries are permanent: a mistake is corrected by another entry. The client chooses the id, and sending the same entry again changes nothing.",
-        "operationId": "record_entry_api_v1_me_students__email__entries__entry_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "email",
-            "required": true,
-            "schema": {
-              "title": "Email",
-              "type": "string"
+      },
+      "post": {
+        "description": "How to reach a student who has not booked anything yet. The address travels in the body, once; every other request names the student by the id returned here, so that addresses of pages and requests never contain an e-mail address. Asking again for the same address returns the same student.",
+        "operationId": "open_account_api_v1_me_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountIn"
+              }
             }
           },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not signed in"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too many requests from this address. `Retry-After` says how many seconds to wait."
+          }
+        },
+        "summary": "The student with an address, added if the tutor has none",
+        "tags": [
+          "tutor panel"
+        ]
+      }
+    },
+    "/api/v1/me/students/{student_id}/entries/{entry_id}": {
+      "put": {
+        "description": "Entries are permanent: a mistake is corrected by another entry. The client chooses the id, and sending the same entry again changes nothing.",
+        "operationId": "record_entry_api_v1_me_students__student_id__entries__entry_id__put",
+        "parameters": [
           {
             "in": "path",
             "name": "entry_id",
@@ -1867,6 +1946,16 @@
             "schema": {
               "format": "uuid",
               "title": "Entry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Student Id",
               "type": "string"
             }
           }
@@ -1902,6 +1991,16 @@
             },
             "description": "Not signed in"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "This tutor has no such student"
+          },
           "422": {
             "description": "The entry makes no sense, or the id means another entry"
           },
@@ -1922,16 +2021,17 @@
         ]
       }
     },
-    "/api/v1/me/students/{email}/statement": {
+    "/api/v1/me/students/{student_id}/statement": {
       "get": {
-        "operationId": "tutor_statement_api_v1_me_students__email__statement_get",
+        "operationId": "tutor_statement_api_v1_me_students__student_id__statement_get",
         "parameters": [
           {
             "in": "path",
-            "name": "email",
+            "name": "student_id",
             "required": true,
             "schema": {
-              "title": "Email",
+              "format": "uuid",
+              "title": "Student Id",
               "type": "string"
             }
           },

@@ -20,12 +20,12 @@ import { ACCOUNTS_KEY } from "./StudentsPage";
 export function StudentPage() {
   const all = useT();
   const t = all.student;
-  const email = useParams().email!;
+  const studentId = useParams().studentId!;
   const [params] = useSearchParams();
   const month = params.get("month");
   const { data, error, isPending, isFetching, refetch } = useQuery({
-    queryKey: ["statement", email, month],
-    queryFn: ({ signal }) => fetchStatement(email, month, signal),
+    queryKey: ["statement", studentId, month],
+    queryFn: ({ signal }) => fetchStatement(studentId, month, signal),
     placeholderData: keepPreviousData,
     retry: (failures, failure) => failures < 1 && !(failure instanceof ApiError),
   });
@@ -39,20 +39,16 @@ export function StudentPage() {
   );
 
   if (isPending) return <PageSkeleton label={t.loading} />;
-  if (error instanceof ApiError && error.status === 404) {
-    // Not a dead end: a tutor often sells a package before the first lesson,
-    // and recording it is what opens the account.
+  // 404 for an id that is nobody's, 422 for something that is not an id at
+  // all, such as an address left over from an old bookmark.
+  if (error instanceof ApiError && (error.status === 404 || error.status === 422)) {
     return (
       <div className="regulars">
-        <title>{t.pageTitle(email)}</title>
-        <header className="page-head">
-          {back}
-          <h1 className="week-bar__title">{email}</h1>
-        </header>
-        <Notice title={t.nothingTitle}>
-          <p>{t.nothingBody}</p>
+        <title>{t.pageTitle(t.missingTitle)}</title>
+        <header className="page-head">{back}</header>
+        <Notice tone="problem" level={1} title={t.missingTitle}>
+          <p>{t.missingBody}</p>
         </Notice>
-        <AddTime email={email} />
       </div>
     );
   }
@@ -63,6 +59,24 @@ export function StudentPage() {
           {all.common.tryAgain}
         </Button>
       </Notice>
+    );
+  }
+
+  if (data.nothing_recorded) {
+    // Not a dead end: a tutor often sells a package before the first lesson,
+    // and recording it is what puts the student on the list.
+    return (
+      <div className="regulars">
+        <title>{t.pageTitle(data.student_email)}</title>
+        <header className="page-head">
+          {back}
+          <h1 className="week-bar__title">{data.student_email}</h1>
+        </header>
+        <Notice title={t.nothingTitle}>
+          <p>{t.nothingBody}</p>
+        </Notice>
+        <AddTime studentId={studentId} />
+      </div>
     );
   }
 
@@ -101,7 +115,7 @@ export function StudentPage() {
       <div className="account-page__columns">
         <StatementTable statement={data} monthLink={(first) => `?month=${first}`} />
         <div className="account-page__side">
-          <AddTime email={email} />
+          <AddTime studentId={studentId} />
           <ParentLink statement={data} />
         </div>
       </div>
@@ -111,7 +125,7 @@ export function StudentPage() {
 
 type Kind = NewEntry["kind"];
 
-function AddTime({ email }: { email: string }) {
+function AddTime({ studentId }: { studentId: string }) {
   const t = useT().student;
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<Kind>("purchase");
@@ -130,7 +144,7 @@ function AddTime({ email }: { email: string }) {
       if (attempt.current?.entry !== fingerprint) {
         attempt.current = { entry: fingerprint, id: crypto.randomUUID() };
       }
-      return recordEntry(email, attempt.current.id, entry);
+      return recordEntry(studentId, attempt.current.id, entry);
     },
     onSuccess: () => {
       // The next entry is a new one even if it looks the same: ten hours twice
@@ -138,7 +152,7 @@ function AddTime({ email }: { email: string }) {
       attempt.current = null;
       setHours("");
       setNote("");
-      void queryClient.invalidateQueries({ queryKey: ["statement", email] });
+      void queryClient.invalidateQueries({ queryKey: ["statement", studentId] });
       void queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY });
     },
   });

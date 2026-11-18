@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from tutor_calendar.adapters.in_memory_billing import InMemoryOutbox
 from tutor_calendar.application.errors import SeriesConflictError, SlotTakenError
-from tutor_calendar.application.ports import Email
+from tutor_calendar.application.ports import Email, StudentRecord
 from tutor_calendar.domain.billing import account_key, is_settled
 from tutor_calendar.domain.scheduling import Booking, LessonSeries, LessonStatus, TimeRange
 
@@ -24,6 +24,8 @@ class InMemoryBookingRepository:
         self._bookings: dict[UUID, Booking] = {}
         self._by_key: dict[tuple[UUID, str], UUID] = {}
         self._series: dict[UUID, LessonSeries] = {}
+        # (tutor, address) to the student's id.
+        self._students: dict[tuple[UUID, str], UUID] = {}
         self._settled: set[UUID] = set()
         self._reminded: set[UUID] = set()
         # Where confirmations and reminders are queued. Shared with whoever delivers them.
@@ -67,12 +69,35 @@ class InMemoryBookingRepository:
             self.outbox.put(confirmation, booking.created_at)
         return booking
 
-    async def students(self, tutor_id: UUID) -> dict[str, str]:
-        latest: dict[str, str] = {}
-        for booking in sorted(self._bookings.values(), key=lambda each: each.created_at):
-            if booking.tutor_id == tutor_id:
-                latest[account_key(booking.student.email)] = booking.student.name
-        return latest
+    async def students(self, tutor_id: UUID) -> list[StudentRecord]:
+        return [
+            self._record(tutor, account) for tutor, account in self._students if tutor == tutor_id
+        ]
+
+    async def get_student(self, student_id: UUID) -> StudentRecord | None:
+        return next(
+            (self._record(*key) for key, each in self._students.items() if each == student_id),
+            None,
+        )
+
+    async def find_student(self, tutor_id: UUID, account: str) -> StudentRecord | None:
+        return self._record(tutor_id, account) if (tutor_id, account) in self._students else None
+
+    async def enrol(self, tutor_id: UUID, account: str, now: datetime) -> StudentRecord:
+        self._students.setdefault((tutor_id, account), uuid4())
+        return self._record(tutor_id, account)
+
+    def _record(self, tutor_id: UUID, account: str) -> StudentRecord:
+        lessons = sorted(
+            (
+                booking
+                for booking in self._bookings.values()
+                if booking.tutor_id == tutor_id and account_key(booking.student.email) == account
+            ),
+            key=lambda booking: booking.created_at,
+        )
+        name = lessons[-1].student.name if lessons else None
+        return StudentRecord(self._students[tutor_id, account], tutor_id, account, name)
 
     async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
         waiting = [
@@ -163,5 +188,6 @@ class InMemoryBookingRepository:
         )
 
     def _store(self, booking: Booking, idempotency_key: str) -> None:
+        self._students.setdefault((booking.tutor_id, account_key(booking.student.email)), uuid4())
         self._bookings[booking.id] = booking
         self._by_key[(booking.tutor_id, idempotency_key)] = booking.id
