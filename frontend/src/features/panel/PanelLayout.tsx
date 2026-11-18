@@ -4,7 +4,23 @@ import { Link, Navigate, NavLink, Outlet, useOutletContext } from "react-router"
 import { signOut, type Profile } from "../../api/client";
 import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton } from "../../ui";
+import { Brand, LanguageSwitch, SiteHeader } from "../frame/Frame";
+import {
+  CalendarIcon,
+  ClockIcon,
+  OpenIcon,
+  PeopleIcon,
+  RepeatIcon,
+  SignOutIcon,
+} from "../frame/icons";
 import { PROFILE_KEY, useProfile } from "../auth/useProfile";
+
+/** "Anna Nowak" → "AN": a face for a name, where there are no photos. */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters = words.length > 1 ? [words[0]!, words.at(-1)!] : words;
+  return letters.map((word) => word[0]!.toLocaleUpperCase()).join("");
+}
 
 /** The signed-in tutor, for pages rendered inside the panel. */
 export function useTutor(): Profile {
@@ -32,61 +48,90 @@ export function PanelLayout() {
 
   if (profile.isPending) {
     return (
-      <main className="page page--wide" id="content">
-        <PageSkeleton label={t.loading} />
-      </main>
+      <>
+        <SiteHeader />
+        <main className="page page--wide" id="content">
+          <PageSkeleton label={t.loading} />
+        </main>
+      </>
     );
   }
   if (profile.isError) {
     return (
-      <main className="page page--wide" id="content">
-        <Notice tone="problem" level={1} title={t.loadFailedTitle}>
-          <p>{t.loadFailedBody}</p>
-          <Button busy={profile.isFetching} onClick={() => profile.refetch()}>
-            {all.common.tryAgain}
-          </Button>
-        </Notice>
-      </main>
+      <>
+        <SiteHeader />
+        <main className="page page--wide" id="content">
+          <Notice tone="problem" level={1} title={t.loadFailedTitle}>
+            <p>{t.loadFailedBody}</p>
+            <Button busy={profile.isFetching} onClick={() => profile.refetch()}>
+              {all.common.tryAgain}
+            </Button>
+          </Notice>
+        </main>
+      </>
     );
   }
   if (!profile.data) return <Navigate to="/sign-in" replace />;
 
   const tutor = profile.data;
+  const sections = [
+    { to: "/panel", name: t.week, icon: <CalendarIcon />, end: true },
+    { to: "/panel/regulars", name: t.regulars, icon: <RepeatIcon />, end: false },
+    { to: "/panel/students", name: t.students, icon: <PeopleIcon />, end: false },
+    { to: "/panel/availability", name: t.availability, icon: <ClockIcon />, end: false },
+  ];
   return (
-    <div className="page page--wide">
-      <header className="panel-header">
-        <div>
-          <p className="page__eyebrow">{t.eyebrow}</p>
-          <p className="panel-header__name">{tutor.display_name}</p>
-        </div>
-        <nav className="panel-nav" aria-label={t.nav}>
-          <NavLink className="panel-nav__link" to="/panel" end>
-            {t.week}
-          </NavLink>
-          <NavLink className="panel-nav__link" to="/panel/regulars">
-            {t.regulars}
-          </NavLink>
-          <NavLink className="panel-nav__link" to="/panel/students">
-            {t.students}
-          </NavLink>
-          <NavLink className="panel-nav__link" to="/panel/availability">
-            {t.availability}
-          </NavLink>
-          <Link className="panel-nav__link" to={`/book/${tutor.slug}`}>
-            {t.bookingPage}
-          </Link>
-          <Button variant="secondary" busy={leave.isPending} onClick={() => leave.mutate()}>
-            {t.signOut}
-          </Button>
+    // On a phone the sidebar comes apart: the name on top, the sections in a
+    // bar along the bottom, the rest after the page.
+    <div className="shell">
+      <div className="shell__side">
+        <header className="shell__top">
+          <Brand />
+        </header>
+        <nav className="shell__nav" aria-label={t.nav}>
+          {sections.map((section) => (
+            <NavLink key={section.to} className="shell__link" to={section.to} end={section.end}>
+              {section.icon}
+              <span>{section.name}</span>
+            </NavLink>
+          ))}
         </nav>
-      </header>
-      {leave.isError && (
-        <p className="form__error" role="alert">
-          {t.signOutFailed}
-        </p>
-      )}
-      <main id="content">
-        <Outlet context={tutor} />
+        <footer className="shell__extra">
+          <Link className="shell__link shell__link--quiet" to={`/book/${tutor.slug}`}>
+            <OpenIcon />
+            <span>{t.bookingPage}</span>
+          </Link>
+          <button
+            type="button"
+            className="shell__link shell__link--quiet"
+            disabled={leave.isPending}
+            aria-busy={leave.isPending || undefined}
+            onClick={() => leave.mutate()}
+          >
+            <SignOutIcon />
+            <span>{t.signOut}</span>
+          </button>
+          <LanguageSwitch />
+          <div className="shell__user">
+            <span className="avatar" aria-hidden="true">
+              {initials(tutor.display_name)}
+            </span>
+            <span className="shell__name">
+              <span className="shell__eyebrow">{t.eyebrow}</span>
+              {tutor.display_name}
+            </span>
+          </div>
+          {leave.isError && (
+            <p className="form__error" role="alert">
+              {t.signOutFailed}
+            </p>
+          )}
+        </footer>
+      </div>
+      <main className="shell__main" id="content">
+        <div className="shell__page">
+          <Outlet context={tutor} />
+        </div>
       </main>
     </div>
   );

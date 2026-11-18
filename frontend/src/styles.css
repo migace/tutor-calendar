@@ -2,44 +2,79 @@
 :root {
   color-scheme: light dark;
 
-  --color-bg: #f6f5f1;
+  /* Neutrals with a little warmth, one teal accent. The accent marks only what
+     can be pressed or is chosen. Contrast on white: text 17:1, muted 7.6:1,
+     accent 5.5:1, input borders 3.5:1. */
+  --color-bg: #fafaf9;
+  --color-panel: #f4f4f2;
   --color-surface: #ffffff;
-  --color-text: #1c1b18;
-  --color-text-muted: #5f5c54;
-  --color-border: #dcd9d0;
-  --color-accent: #1f5f4a;
+  --color-sunken: #f5f5f4;
+  --color-text: #1c1917;
+  --color-text-muted: #57534e;
+  --color-border: #e7e5e4;
+  --color-input: #8c8782;
+  --color-accent: #0f766e;
+  --color-accent-hover: #115e59;
   --color-accent-contrast: #ffffff;
-  --color-accent-soft: #e3efe9;
-  --color-danger: #a3301f;
-  --color-warning: #8a5a00;
-  --color-focus: #1b6fd1;
+  --color-accent-soft: #e8f4f1;
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-warning: #b54708;
+  --color-warning-soft: #fff6ed;
+  --color-inverse: #1c1917;
+  --color-inverse-text: #fafaf9;
+  --color-focus: #2563eb;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
 
-  --radius-control: 0.5rem;
-  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+  --radius-card: 1rem;
+  --radius-pill: 999px;
 
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 2px 8px rgb(28 25 23 / 0.04);
+  --shadow-raised: 0 -1px 0 rgb(28 25 23 / 0.04), 0 -6px 20px rgb(28 25 23 / 0.06);
+
+  --font-body:
+    "Geist Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* 44px: comfortable to hit with a thumb. */
+  --target: 2.75rem;
+
+  /* Set while the demonstration banner is shown above the panel. */
+  --banner-height: 0px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #141513;
-    --color-surface: #1d1f1c;
-    --color-text: #eceae4;
-    --color-text-muted: #a5a299;
-    --color-border: #353832;
-    --color-accent: #7fd1b3;
-    --color-accent-contrast: #0d2219;
-    --color-accent-soft: #20342c;
-    --color-danger: #f0937f;
-    --color-warning: #f2c46b;
-    --color-focus: #8bbcff;
+    --color-bg: #151413;
+    --color-panel: #1b1a18;
+    --color-surface: #211f1d;
+    --color-sunken: #2a2826;
+    --color-text: #eeece9;
+    --color-text-muted: #aba59f;
+    --color-border: #35322f;
+    --color-input: #7d7670;
+    --color-accent: #5ec8b8;
+    --color-accent-hover: #86d9cc;
+    --color-accent-contrast: #082824;
+    --color-accent-soft: #163330;
+    --color-danger: #f97b6d;
+    --color-danger-soft: #3b1a16;
+    --color-warning: #f5b453;
+    --color-warning-soft: #36260f;
+    --color-inverse: #2c2a27;
+    --color-inverse-text: #eeece9;
+    --color-focus: #8bb8ff;
+
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+    --shadow-raised: 0 -6px 20px rgb(0 0 0 / 0.35);
   }
 }
 
@@ -54,8 +89,15 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
+  font-size: 1rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
 }
 
 :focus-visible {
@@ -72,10 +114,158 @@ body {
   white-space: nowrap;
 }
 
+.icon {
+  flex: none;
+}
+
+/* The frame around public pages */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-radius: 0.5rem;
+}
+
+.brand__mark .icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Two answers side by side in one rounded track. */
+.language {
+  display: inline-flex;
+  padding: 0.1875rem;
+  background: var(--color-sunken);
+  border-radius: var(--radius-control);
+}
+
+.language__option {
+  min-height: 2.375rem;
+  padding: 0 var(--space-3);
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 0;
+  border-radius: calc(var(--radius-control) - 0.1875rem);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.language__option:hover {
+  color: var(--color-text);
+}
+
+.language__option[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(28 25 23 / 0.12);
+  font-weight: 600;
+}
+
+/* Off screen until it receives keyboard focus, then the first thing on the page. */
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* Focus moved here by the skip link: the outline would frame the whole page. */
+main:focus {
+  outline: none;
+}
+
+.demo-banner {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-inverse);
+  color: var(--color-inverse-text);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.demo-banner p {
+  margin: 0;
+}
+
+/* One line of known height on a wide screen, so the panel's sidebar can fill
+   exactly what is left of the window. */
+@media (min-width: 64rem) {
+  .demo-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--banner-height);
+    white-space: nowrap;
+  }
+
+  body:has(.demo-banner) {
+    --banner-height: 2.5rem;
+  }
+}
+
+.demo-banner__badge {
+  display: inline-block;
+  margin-right: var(--space-1);
+  padding: 0 var(--space-2);
+  background: rgb(255 255 255 / 0.14);
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.demo-banner__link {
+  color: inherit;
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+
+/* Pages */
+
 .page {
   max-width: 40rem;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4) var(--space-8);
+  padding: var(--space-4) var(--space-4) var(--space-10);
+}
+
+.page--wide {
+  max-width: 72rem;
 }
 
 .page__header {
@@ -87,43 +277,290 @@ body {
   color: var(--color-accent);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .page__title {
   margin: var(--space-1) 0 var(--space-2);
   font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 650;
   line-height: 1.15;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .page__meta {
   margin: 0;
   color: var(--color-text-muted);
+  font-size: 0.9375rem;
 }
 
-.days {
-  display: grid;
+.page-head {
+  margin-bottom: var(--space-6);
+}
+
+.page-head__who {
+  display: flex;
+  align-items: center;
   gap: var(--space-3);
+  min-width: 0;
 }
 
-.day {
-  padding: var(--space-4);
+.page-head__who > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.back {
+  margin: 0 0 var(--space-3);
+}
+
+.back__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--target);
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.back__link:hover {
+  color: var(--color-text);
+}
+
+.card {
+  padding: var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
 }
 
-.day__heading {
+/* Booking: who and how on the left, the calendar on the right */
+
+.page--booking {
+  max-width: 72rem;
+}
+
+.booking {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.booking__card {
+  min-width: 0;
+}
+
+@media (min-width: 60rem) {
+  .page--booking {
+    padding-top: var(--space-8);
+  }
+
+  .booking {
+    grid-template-columns: 18rem minmax(0, 1fr);
+    gap: var(--space-10);
+    align-items: start;
+  }
+
+  .booking__intro {
+    position: sticky;
+    top: var(--space-6);
+  }
+
+  .booking__card {
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius-card) + 0.25rem);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.steps {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.steps__item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-text-muted);
+}
+
+/* A bar for each step on a phone; a numbered list on a wide screen. */
+.steps__item::before {
+  content: "";
+  height: 0.25rem;
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.steps__item--done::before,
+.steps__item--current::before {
+  background: var(--color-accent);
+}
+
+.steps__item--current {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.steps__number {
+  display: none;
+}
+
+@media (min-width: 60rem) {
+  .steps {
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-top: var(--space-8);
+    font-size: 0.9375rem;
+  }
+
+  .steps__item {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .steps__item::before {
+    content: none;
+  }
+
+  .steps__number {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .steps__number .icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .steps__item--current .steps__number {
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+    border-color: var(--color-accent);
+  }
+
+  .steps__item--done .steps__number {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    border-color: transparent;
+  }
+}
+
+/* The calendar and the chosen day's times */
+
+.picker {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@media (min-width: 48rem) {
+  .picker {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+}
+
+.calendar__month {
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+/* Polish writes months and weekdays in lower case; a caption starts with a capital. */
+.calendar__month::first-letter,
+.week__weekday::first-letter,
+.times__heading::first-letter {
+  text-transform: uppercase;
+}
+
+.calendar__weekdays,
+.calendar__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.calendar__weekdays {
+  margin-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.calendar__day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: var(--target);
+  padding: 0;
+  background: transparent;
+  color: var(--color-text);
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+button.calendar__day:hover {
+  background: var(--color-accent-soft);
+}
+
+.calendar__day--off {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  opacity: 0.55;
+  cursor: default;
+}
+
+.calendar__dot {
+  position: absolute;
+  bottom: 0.3125rem;
+  width: 0.25rem;
+  height: 0.25rem;
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+}
+
+.calendar__day[aria-pressed="true"] {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.calendar__day[aria-pressed="true"] .calendar__dot {
+  background: var(--color-accent-contrast);
+}
+
+.times__heading {
   margin: 0 0 var(--space-3);
   font-size: 1rem;
   font-weight: 600;
 }
 
-.day__slots {
+.times__list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(5.25rem, 1fr));
   gap: var(--space-2);
   margin: 0;
   padding: 0;
@@ -132,13 +569,13 @@ body {
 
 .slot {
   width: 100%;
-  /* 44px: comfortable to hit with a thumb. */
-  min-height: 2.75rem;
-  background: transparent;
+  min-height: var(--target);
+  background: var(--color-surface);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   font: inherit;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
@@ -147,8 +584,8 @@ body {
 }
 
 .slot:hover {
-  background: var(--color-accent-soft);
   border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .slot[aria-pressed="true"] {
@@ -158,68 +595,56 @@ body {
   font-weight: 600;
 }
 
+/* What is chosen, and the way on. On a phone it stays at the bottom of the screen. */
 .selection {
   position: fixed;
   inset: auto 0 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
+  box-shadow: var(--shadow-raised);
 }
 
 .selection__text {
+  flex: 1 1 12rem;
   margin: 0;
+  font-size: 0.9375rem;
 }
 
 .selection .button {
   margin-top: 0;
 }
 
-.notice {
-  padding: var(--space-6);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+/* Room for the bar at the end of the page. */
+.page--booking {
+  padding-bottom: 9rem;
 }
 
-.notice--problem {
-  border-color: var(--color-danger);
-}
+@media (min-width: 60rem) {
+  .selection {
+    position: static;
+    margin-top: var(--space-6);
+    padding: var(--space-4) 0 0;
+    background: none;
+    border-top: 1px solid var(--color-border);
+    box-shadow: none;
+  }
 
-.notice--warning {
-  margin-bottom: var(--space-4);
-  border-color: var(--color-warning);
-}
-
-.notice__title {
-  margin: 0 0 var(--space-2);
-  font-size: 1.125rem;
-}
-
-.notice p {
-  margin: 0;
-  color: var(--color-text-muted);
-}
-
-.notice .notice__lead {
-  margin-bottom: var(--space-1);
-  color: var(--color-text);
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.notice--success {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  .page--booking {
+    padding-bottom: var(--space-10);
+  }
 }
 
 .step__heading {
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-4);
   font-size: 1.25rem;
+  font-weight: 650;
 }
 
 /* Headings and notices that receive focus from a script, not from the Tab key. */
@@ -230,19 +655,109 @@ body {
 .summary {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-1) var(--space-4);
   margin-bottom: var(--space-6);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-accent-soft);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-control);
 }
 
 .summary__time {
   margin: 0;
   font-weight: 600;
 }
+
+/* Notices */
+
+.notice {
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.notice--problem {
+  background: var(--color-danger-soft);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+}
+
+.notice--warning {
+  margin-bottom: var(--space-4);
+  background: var(--color-warning-soft);
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+}
+
+.notice--success {
+  text-align: center;
+}
+
+.notice__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: var(--space-4);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-radius: var(--radius-pill);
+}
+
+.notice__icon .icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.notice__title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.notice p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.notice p + p,
+.notice p + .button {
+  margin-top: var(--space-3);
+}
+
+.notice .notice__lead {
+  margin: var(--space-4) 0 var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-sunken);
+  color: var(--color-text);
+  border-radius: var(--radius-control);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.notice--success .notice__link {
+  margin-top: var(--space-4);
+}
+
+.notice--demo {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  margin-bottom: var(--space-6);
+  background: var(--color-accent-soft);
+  border-color: transparent;
+}
+
+.notice--demo p {
+  color: var(--color-text);
+}
+
+.notice--demo .button {
+  margin-top: 0;
+}
+
+/* Forms and buttons */
 
 .link {
   padding: 0;
@@ -252,8 +767,13 @@ body {
   font: inherit;
   font-weight: 600;
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
   cursor: pointer;
+}
+
+.link:hover {
+  color: var(--color-accent-hover);
 }
 
 .link:disabled {
@@ -263,41 +783,48 @@ body {
 
 .form {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .field__label {
   display: block;
+  margin-bottom: var(--space-1);
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
 .field__hint {
   margin: 0 0 var(--space-2);
   color: var(--color-text-muted);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
 }
 
 .field__input {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--target);
   padding: 0 var(--space-3);
   background: var(--color-surface);
   color: var(--color-text);
-  border: 1px solid var(--color-text-muted);
+  border: 1px solid var(--color-input);
   border-radius: var(--radius-control);
   /* 16px or more, or iOS zooms the page when the field is focused. */
   font: inherit;
 }
 
+.field__input:hover {
+  border-color: var(--color-text-muted);
+}
+
 .field__input[aria-invalid="true"] {
   border-color: var(--color-danger);
-  border-width: 2px;
+  box-shadow: inset 0 0 0 1px var(--color-danger);
 }
 
 .field__problem,
 .form__error {
   margin: var(--space-2) 0 0;
   color: var(--color-danger);
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
@@ -306,16 +833,36 @@ body {
 }
 
 .button {
-  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--target);
   margin-top: var(--space-4);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-5);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border: 0;
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius-control);
   font: inherit;
   font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+/* A label too long for one line still sits clear of the edges. */
+.button {
+  padding-block: var(--space-2);
+}
+
+.button:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
 }
 
 .button:disabled {
@@ -329,16 +876,73 @@ body {
 }
 
 .button--secondary {
-  background: transparent;
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-input);
 }
 
-/* Links that navigate but should look like the buttons next to them. */
-a.button {
-  display: inline-flex;
+.button--secondary:hover {
+  background: var(--color-sunken);
+  border-color: var(--color-text-muted);
+}
+
+/* Choices drawn as options to tap, each with its radio button. */
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice > .field__label {
+  width: 100%;
+  padding: 0;
+}
+
+.choice__option {
+  display: flex;
+  flex: 1 1 12rem;
   align-items: center;
-  text-decoration: none;
+  gap: var(--space-2);
+  min-height: var(--target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.choice__option:has(input:checked) {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.choice__option input {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.confirm .button {
+  margin-top: var(--space-1);
+}
+
+.confirm__question {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .skeleton {
@@ -364,69 +968,253 @@ a.button {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
-  }
-
-  .slot {
-    transition: none;
-  }
+/* A face for a name, where there are no photos. */
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-/* Tutor panel */
-
-.page--wide {
-  max-width: 72rem;
-  padding-bottom: var(--space-8);
+.avatar--large {
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 1.0625rem;
 }
 
-.panel-header {
-  display: flex;
-  flex-wrap: wrap;
+.chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  padding: 0.0625rem var(--space-2);
+  background: var(--color-sunken);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.panel-header__name {
-  margin: 0;
-  font-size: 1.25rem;
+.chip--accent {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.chip--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+/* The tutor's panel: a sidebar beside the page on a wide screen */
+
+.shell {
+  min-height: calc(100dvh - var(--banner-height));
+  background: var(--color-panel);
+}
+
+.shell__top {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+}
+
+.shell__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-control);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+button.shell__link {
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.shell__link:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.shell__link:hover {
+  background: var(--color-sunken);
+  color: var(--color-text);
+}
+
+.shell__link[aria-current="page"] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(28 25 23 / 0.08);
   font-weight: 600;
 }
 
-.panel-nav {
+.shell__link[aria-current="page"] .icon {
+  color: var(--color-accent);
+}
+
+.shell__extra {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.shell__extra .language {
+  margin: var(--space-2) 0;
+}
+
+.shell__user {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-2) var(--space-3);
+  width: 100%;
 }
 
-.panel-nav .button {
+.shell__user .button {
   margin-top: 0;
 }
 
-.panel-nav__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  color: var(--color-text);
+.shell__name {
+  display: grid;
+  flex: 1 1 8rem;
+  min-width: 0;
   font-weight: 600;
-  text-decoration: none;
-  border-bottom: 3px solid transparent;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
-.panel-nav__link:hover {
-  border-bottom-color: var(--color-border);
+.shell__eyebrow {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-.panel-nav__link[aria-current="page"] {
-  color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
+.shell__page {
+  min-width: 0;
+  padding: var(--space-5) var(--space-4) var(--space-8);
 }
+
+/* Phone: the sidebar comes apart. The name stays on top, the sections become a
+   bar along the bottom and everything else follows the page. */
+@media (max-width: 63.99rem) {
+  .shell {
+    display: grid;
+    grid-template-areas: "top" "main" "extra";
+    /* Clear of the bar of sections. */
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+  }
+
+  .shell__side {
+    display: contents;
+  }
+
+  .shell__top {
+    grid-area: top;
+  }
+
+  .shell__main {
+    grid-area: main;
+    min-width: 0;
+    background: var(--color-surface);
+    border-block: 1px solid var(--color-border);
+  }
+
+  .shell__extra {
+    grid-area: extra;
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .shell__nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom));
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .shell__nav .shell__link {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+    padding: var(--space-1);
+    font-size: 0.75rem;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .shell__nav .shell__link[aria-current="page"] {
+    background: transparent;
+    color: var(--color-accent);
+    box-shadow: none;
+  }
+}
+
+@media (min-width: 64rem) {
+  .shell {
+    display: grid;
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+  }
+
+  .shell__side {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    height: calc(100dvh - var(--banner-height));
+    padding: var(--space-4) var(--space-3);
+    overflow-y: auto;
+  }
+
+  .shell__top {
+    padding: var(--space-1) var(--space-3) var(--space-3);
+  }
+
+  .shell__nav {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .shell__extra {
+    margin-top: auto;
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .shell__main {
+    min-width: 0;
+    padding: var(--space-3) var(--space-3) var(--space-3) 0;
+  }
+
+  .shell__page {
+    min-height: calc(100dvh - var(--banner-height) - var(--space-6));
+    padding: var(--space-8) var(--space-10) var(--space-10);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius-card) + 0.25rem);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+/* The week */
 
 .week-bar {
   display: flex;
@@ -434,23 +1222,84 @@ a.button {
   align-items: end;
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .week-bar__title {
   margin: 0 0 var(--space-1);
-  font-size: clamp(1.375rem, 4vw, 1.75rem);
+  font-size: clamp(1.5rem, 4vw, 1.875rem);
+  font-weight: 650;
   line-height: 1.2;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
 }
 
 .week-bar__nav {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .week-bar__nav .button {
   margin-top: 0;
+  padding: 0 var(--space-4);
+}
+
+/* The seven days at a glance, each a way to its row below. */
+.strip__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.strip__day {
+  display: grid;
+  justify-items: center;
+  gap: 0.125rem;
+  padding: var(--space-2) var(--space-1);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  text-decoration: none;
+  text-align: center;
+}
+
+.strip__day:hover {
+  border-color: var(--color-accent);
+}
+
+.strip__day[aria-current="date"] {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-color: var(--color-accent);
+}
+
+.strip__weekday {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.strip__number {
+  font-size: 1.125rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.strip__count {
+  font-size: 0.75rem;
+  line-height: 1.25;
+  opacity: 0.8;
+}
+
+/* Too narrow for the count in words: the rows below carry it. */
+@media (max-width: 29.99rem) {
+  .strip__count {
+    display: none;
+  }
 }
 
 /* One row for each day: the date on the left, that day's lessons beside it,
@@ -458,50 +1307,48 @@ a.button {
    Seven columns would look more like a calendar, but a column has no room for
    a name, an address and a question with two answers, in two languages. */
 .week {
-  display: grid;
-  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--color-border);
 }
 
 .week__day {
   display: grid;
   gap: var(--space-2) var(--space-4);
   min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+  scroll-margin-top: var(--space-4);
 }
 
 @media (min-width: 48rem) {
   .week__day {
-    grid-template-columns: 10rem minmax(0, 1fr);
-    /* The day's name lines up with the first line of its first lesson. */
-    align-items: baseline;
+    grid-template-columns: 9.5rem minmax(0, 1fr);
+    align-items: start;
   }
 }
 
-.week__day[aria-current="date"] {
-  border-color: var(--color-accent);
-  /* A thicker edge that does not move what is inside. */
-  box-shadow: inset 0 0 0 1px var(--color-accent);
-}
-
 .week__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
 }
 
-/* Polish writes the days of the week in lower case; a heading starts with a capital. */
-.week__weekday {
-  display: inline-block;
+@media (min-width: 48rem) {
+  .week__heading {
+    flex-direction: column;
+    align-items: start;
+    padding-top: var(--space-2);
+  }
 }
 
-.week__weekday::first-letter {
-  text-transform: uppercase;
+.week__weekday {
+  display: inline-block;
 }
 
 .week__date {
@@ -515,15 +1362,22 @@ a.button {
   padding: 0 var(--space-2);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .week__empty {
   margin: 0;
   color: var(--color-text-muted);
+}
+
+@media (min-width: 48rem) {
+  .week__day > .week__empty {
+    padding-top: var(--space-2);
+  }
 }
 
 .week__lessons {
@@ -541,10 +1395,48 @@ a.button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-accent-soft);
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
+}
+
+/* On a phone: the face on the left, the time and what is special about it on
+   top, the name under them and the button across the bottom. */
+@media (max-width: 47.99rem) {
+  .lesson {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "avatar time notes" "avatar who who";
+    column-gap: var(--space-3);
+    row-gap: 0;
+  }
+
+  .lesson > .avatar {
+    grid-area: avatar;
+    align-self: start;
+  }
+
+  .lesson > .lesson__time {
+    grid-area: time;
+  }
+
+  .lesson > .lesson__notes {
+    grid-area: notes;
+    justify-content: end;
+  }
+
+  .lesson > .lesson__who {
+    grid-area: who;
+  }
+
+  .lesson > .button,
+  .lesson > .confirm {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: var(--space-3);
+  }
 }
 
 .lesson__time {
@@ -556,48 +1448,171 @@ a.button {
 
 .lesson__who {
   display: grid;
-  flex: 1 1 14rem;
+  flex: 1 1 12rem;
   justify-items: start;
   min-width: 0;
+  line-height: 1.35;
+}
+
+.lesson__student {
+  font-weight: 600;
 }
 
 .lesson__email {
-  color: var(--color-accent);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
+  text-decoration: none;
   /* Only an address longer than the whole line is ever broken. */
   overflow-wrap: anywhere;
+}
+
+.lesson__email:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
 }
 
 .lesson__notes {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-1) var(--space-2);
+}
+
+/* In the week a lesson is one line, so its button sits in that line and the
+   question, when asked, takes a line of its own underneath. */
+.lesson .button {
+  min-height: 2.5rem;
+  margin-top: 0;
+  padding: 0 var(--space-4);
+  font-size: 0.9375rem;
+}
+
+.lesson .confirm {
+  flex-basis: 100%;
+  padding: var(--space-3);
+  background: var(--color-danger-soft);
+  border-radius: calc(var(--radius-control) - 0.125rem);
+}
+
+.lesson .confirm__question {
+  color: var(--color-danger);
+}
+
+.lesson .confirm .button:not(.button--secondary) {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-surface);
+}
+
+.lesson--off {
+  background: transparent;
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+.lesson--off .avatar {
+  background: var(--color-sunken);
+  color: var(--color-text-muted);
+}
+
+.lesson--off .lesson__time,
+.lesson--off .lesson__student {
+  text-decoration: line-through;
+}
+
+/* Weekly hours */
+
+.hours-page {
+  display: grid;
+  gap: 0 var(--space-10);
+}
+
+.hours-page > .page-head {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 75rem) {
+  .hours-page {
+    grid-template-columns: minmax(0, 1fr) 17rem;
+    align-items: start;
+  }
 }
 
 .hours {
   display: grid;
-  gap: var(--space-4);
-  max-width: 40rem;
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
 }
 
 .hours__day {
-  display: grid;
-  gap: var(--space-3);
-  justify-items: start;
+  min-width: 0;
   margin: 0;
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  padding: var(--space-4) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
+/* The weekday on the left of its hours, like the days of the week. */
 .hours__weekday {
-  padding: 0 var(--space-2);
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: 0;
   font-weight: 600;
 }
 
-.hours__day .button {
+.hours__weekday::first-letter {
+  text-transform: uppercase;
+}
+
+.hours__blocks {
+  display: grid;
+  clear: both;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+@media (min-width: 48rem) {
+  .hours__weekday {
+    width: 9.5rem;
+    margin: 0;
+    padding-top: var(--space-2);
+  }
+
+  .hours__blocks {
+    display: flow-root;
+    clear: none;
+  }
+
+  .hours__blocks > * + * {
+    margin-top: var(--space-2);
+  }
+
+  .hours__blocks > .week__empty {
+    padding-top: var(--space-2);
+  }
+}
+
+.hours__blocks .button {
   margin-top: 0;
+}
+
+/* Adding hours is a quiet, secondary step under the day's hours. */
+.hours__blocks > .button--secondary {
+  padding-inline: var(--space-2);
+  margin-inline-start: calc(-1 * var(--space-2));
+  background: none;
+  color: var(--color-accent);
+  border-color: transparent;
+}
+
+.hours__blocks > .button--secondary::before {
+  content: "+";
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.hours__blocks > .button--secondary:hover {
+  background: var(--color-accent-soft);
 }
 
 .hours__row {
@@ -608,14 +1623,21 @@ a.button {
 }
 
 .hours__time {
-  width: auto;
+  width: 7.5rem;
   font-variant-numeric: tabular-nums;
 }
 
 .hours__footer {
-  display: grid;
-  gap: var(--space-2);
-  justify-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-5);
+}
+
+.hours__footer .form__error {
+  flex-basis: 100%;
 }
 
 .hours__footer .button {
@@ -629,63 +1651,92 @@ a.button {
   font-weight: 600;
 }
 
-/* Lesson states and actions */
+.form .hours__status:empty {
+  display: none;
+}
 
-.lesson--off {
-  background: transparent;
-  border: 1px dashed var(--color-border);
+/* The hours being edited, drawn as a week. */
+.preview {
+  display: none;
+}
+
+@media (min-width: 75rem) {
+  .preview {
+    position: sticky;
+    top: var(--space-6);
+    display: block;
+    padding: var(--space-5);
+    background: var(--color-sunken);
+    border-radius: var(--radius-card);
+  }
+}
+
+.preview__heading {
+  margin: 0 0 var(--space-4);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.preview__chart {
+  display: grid;
+  grid-template-columns: 1.5rem repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.preview__hours {
+  position: relative;
+  margin-top: 1.5rem;
   color: var(--color-text-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.lesson--off .lesson__time,
-.lesson--off .lesson__student {
-  text-decoration: line-through;
+.preview__hours span {
+  position: absolute;
+  right: 0.25rem;
+  transform: translateY(-50%);
 }
 
-.lesson__tag,
-.lesson__status {
-  font-size: 0.8125rem;
-  font-weight: 600;
+.preview__day {
+  display: grid;
+  grid-template-rows: 1.5rem 14rem;
 }
 
-.lesson__tag {
-  color: var(--color-accent);
+.preview__weekday {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-align: center;
 }
 
-.confirm .button,
-.day .button {
-  min-height: 2.75rem;
-  margin-top: var(--space-1);
+.preview__column {
+  position: relative;
+  background: var(--color-surface);
+  border-radius: 0.375rem;
 }
 
-.confirm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+.preview__block {
+  position: absolute;
+  inset-inline: 2px;
+  background: var(--color-accent);
+  border-radius: 0.25rem;
 }
 
-.confirm__question {
-  flex-basis: 100%;
-  margin: 0;
-  color: var(--color-text);
-  font-weight: 600;
+.preview__total {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
 }
 
-/* In the week a lesson is one line, so its button sits in that line and the
-   question, when asked, takes a line of its own underneath. */
-.lesson .button {
-  margin-top: 0;
-}
-
-.lesson .confirm {
-  flex-basis: 100%;
-}
+/* Regular lessons and the list of students */
 
 .regulars {
   display: grid;
   gap: var(--space-8);
-  max-width: 40rem;
+  max-width: 44rem;
+}
+
+.regulars > .page-head {
+  margin-bottom: 0;
 }
 
 .regulars__list {
@@ -696,23 +1747,86 @@ a.button {
   list-style: none;
 }
 
-.regulars__form .button {
+.regulars__form .button,
+.regulars .form .button {
   margin-top: 0;
   justify-self: start;
 }
 
-/* Lesson time: accounts and statements */
+.day {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.day__heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.day .page__meta {
+  font-size: 0.9375rem;
+}
+
+.day .button,
+.day .confirm .button {
+  margin-top: var(--space-1);
+}
+
+/* A field and its button on one line while they fit. */
+.form--inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.form--inline .field {
+  flex: 1 1 18rem;
+}
+
+.form.form--inline .button {
+  margin-top: 0;
+}
+
+.accounts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
 
 .account {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.account__who {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.account__who .page__meta {
+  font-size: 0.875rem;
 }
 
 .account__name {
   font-size: 1.0625rem;
+  text-decoration: none;
+}
+
+.account__name:hover {
+  text-decoration: underline;
 }
 
 .account__balance {
@@ -726,24 +1840,141 @@ a.button {
   color: var(--color-danger);
 }
 
+/* One student's account */
+
+.account-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.account-page > .page-head {
+  margin-bottom: 0;
+}
+
+.account-page__columns {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.account-page__side {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+@media (min-width: 75rem) {
+  .account-page__columns {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: var(--space-8);
+    align-items: start;
+  }
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.tile {
+  padding: var(--space-4);
+  background: var(--color-sunken);
+  border-radius: var(--radius-card);
+}
+
+.tile dt {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.tile dt::first-letter {
+  text-transform: uppercase;
+}
+
+.tile dd {
+  margin: var(--space-1) 0 0;
+  font-size: 1.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.tile:first-child {
+  background: var(--color-accent-soft);
+}
+
+.tile:first-child dd {
+  color: var(--color-accent);
+}
+
+.tile--owed:first-child {
+  background: var(--color-danger-soft);
+}
+
+.tile--owed:first-child dd {
+  color: var(--color-danger);
+}
+
+.card .step__heading {
+  font-size: 1.125rem;
+}
+
+.card .form .button {
+  margin-top: 0;
+  justify-self: start;
+}
+
+.card > .page__meta {
+  margin-bottom: var(--space-3);
+}
+
+/* Statements */
+
+.statement {
+  min-width: 0;
+}
+
+.statement .step__heading {
+  margin-bottom: var(--space-1);
+}
+
+.statement .step__heading::first-letter {
+  text-transform: uppercase;
+}
+
 .statement__balance {
   margin: 0;
+  color: var(--color-text-muted);
+}
+
+.statement__balance strong {
+  color: var(--color-text);
 }
 
 .statement__table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
 .statement__table th,
 .statement__table td {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
+}
+
+.statement__table thead th {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .statement__table tr:last-child > * {
@@ -757,29 +1988,8 @@ a.button {
 }
 
 .statement__total > * {
-  background: var(--color-accent-soft);
+  background: var(--color-sunken);
   font-weight: 600;
-}
-
-.choice {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.choice__option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 2.75rem;
-}
-
-.choice__option input {
-  width: 1.25rem;
-  height: 1.25rem;
-  accent-color: var(--color-accent);
 }
 
 .share {
@@ -787,102 +1997,11 @@ a.button {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+  margin: 0;
 }
 
 .share .button {
   margin-top: 0;
-}
-
-.regulars .form .button {
-  margin-top: 0;
-  justify-self: start;
-}
-
-/* The frame around every page */
-
-/* Off screen until it receives keyboard focus, then the first thing on the page. */
-.skip-link {
-  position: absolute;
-  left: var(--space-2);
-  top: var(--space-2);
-  z-index: 2;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  color: var(--color-accent);
-  border: 2px solid var(--color-accent);
-  border-radius: var(--radius-control);
-  font-weight: 600;
-  transform: translateY(-200%);
-}
-
-.skip-link:focus {
-  transform: none;
-}
-
-/* Focus moved here by the skip link: the outline would frame the whole page. */
-main:focus {
-  outline: none;
-}
-
-.demo-banner {
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-accent-soft);
-  border-bottom: 1px solid var(--color-border);
-  text-align: center;
-}
-
-.demo-banner p {
-  margin: 0;
-}
-
-.notice--demo {
-  display: grid;
-  gap: var(--space-3);
-  justify-items: start;
-  margin-bottom: var(--space-6);
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
-}
-
-.notice--demo p {
-  color: var(--color-text);
-}
-
-.notice--demo .button {
-  margin-top: 0;
-}
-
-.site-footer {
-  display: flex;
-  justify-content: center;
-  /* Clear of the fixed selection bar on the booking page. */
-  padding: var(--space-4) var(--space-4) 8rem;
-}
-
-.language {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.language__option {
-  min-height: 2.75rem;
-  padding: 0 var(--space-3);
-  background: transparent;
-  color: var(--color-text-muted);
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  font: inherit;
-  cursor: pointer;
-}
-
-.language__option:hover {
-  border-color: var(--color-border);
-}
-
-.language__option[aria-pressed="true"] {
-  color: var(--color-text);
-  border-color: var(--color-text-muted);
-  font-weight: 600;
 }
 
 /* Text-style buttons that stand on their own get a full-size target. Links
@@ -892,5 +2011,16 @@ main:focus {
 .share .link {
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
+  min-height: var(--target);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+
+  .slot,
+  .button {
+    transition: none;
+  }
 }

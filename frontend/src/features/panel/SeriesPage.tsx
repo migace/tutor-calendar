@@ -60,7 +60,7 @@ export function SeriesPage() {
   return (
     <div className="regulars">
       <title>{t.pageTitle}</title>
-      <header>
+      <header className="page-head">
         <h1 className="week-bar__title">{t.heading}</h1>
         <p className="page__meta">{t.intro(tutor.timezone)}</p>
       </header>
@@ -195,7 +195,7 @@ function NewSeries({ onCreated }: { onCreated: () => void }) {
   });
 
   return (
-    <section aria-labelledby="new-series-heading">
+    <section className="card" aria-labelledby="new-series-heading">
       <h2 className="step__heading" id="new-series-heading">
         {t.addHeading}
       </h2>

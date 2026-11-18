@@ -55,6 +55,14 @@ export const pl: Messages = {
     selected: (when) => `Wybrano: ${when}`,
     pickATime: "Wybierz termin, aby przejść dalej.",
     continue: "Dalej",
+    steps: "Kroki rezerwacji",
+    stepOf: (step, total) => `Krok ${step} z ${total}`,
+    stepTime: "Termin",
+    stepDetails: "Twoje dane",
+    stepDone: "Gotowe",
+    pickDay: "Wybierz dzień",
+    freeTimes: (count) =>
+      `${count} ${plural(count, "wolny termin", "wolne terminy", "wolnych terminów")}`,
 
     yourDetails: "Twoje dane",
     changeTime: "Zmień termin",
@@ -156,6 +164,7 @@ export const pl: Messages = {
     lessons: (count) => (count === 0 ? "Brak lekcji" : lessons(count)),
     timesIn: (zone) => `Godziny w strefie ${zone}`,
     weeksNav: "Tygodnie",
+    overview: "Dni tego tygodnia",
     previous: "Poprzedni",
     thisWeek: "Ten tydzień",
     next: "Następny",
@@ -199,6 +208,8 @@ export const pl: Messages = {
     refused: () => "Serwer nie przyjął tych godzin. Sprawdź, czy przedziały się nie nakładają.",
     failed: "Nie udało się zapisać godzin. Nic się nie zmieniło; spróbuj ponownie.",
     saved: "Zapisano. Odwiedzający widzą już te godziny.",
+    previewHeading: "Podgląd tygodnia",
+    previewTotal: (time) => `${time} tygodniowo otwarte na rezerwacje`,
     saving: "Zapisuję…",
     save: "Zapisz zmiany",
   },
@@ -297,6 +308,10 @@ export const pl: Messages = {
     openParent: "Otwórz widok rodzica",
     copy: "Kopiuj link",
     copied: "Skopiowano.",
+    tiles: "Podsumowanie",
+    tileLeft: "Zostało",
+    tileOwed: "Do zapłaty",
+    tileUsed: (month) => `Wykorzystano: ${month}`,
   },
 
   statement: {

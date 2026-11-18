@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
 import { App } from "./App";
+import "@fontsource-variable/geist";
 import "./styles.css";
 
 const queryClient = new QueryClient({

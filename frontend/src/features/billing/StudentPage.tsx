@@ -9,9 +9,10 @@ import {
   type NewEntry,
   type Statement,
 } from "../../api/client";
-import { formatMinutes } from "../../dates";
+import { formatDay, formatMinutes } from "../../dates";
 import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton, TextField } from "../../ui";
+import { initials } from "../panel/PanelLayout";
 import { StatementTable } from "./StatementTable";
 import { ACCOUNTS_KEY } from "./StudentsPage";
 
@@ -30,9 +31,9 @@ export function StudentPage() {
   });
 
   const back = (
-    <p>
-      <Link className="link" to="/panel/students">
-        {t.all}
+    <p className="back">
+      <Link className="back__link" to="/panel/students">
+        <span aria-hidden="true">←</span> {t.all}
       </Link>
     </p>
   );
@@ -44,7 +45,7 @@ export function StudentPage() {
     return (
       <div className="regulars">
         <title>{t.pageTitle(email)}</title>
-        <header>
+        <header className="page-head">
           {back}
           <h1 className="week-bar__title">{email}</h1>
         </header>
@@ -66,18 +67,44 @@ export function StudentPage() {
   }
 
   const name = data.student_name ?? data.student_email;
+  const owes = data.balance_minutes < 0;
+  const used = data.entries
+    .filter((entry) => entry.kind === "lesson" && entry.minutes < 0)
+    .reduce((sum, entry) => sum - entry.minutes, 0);
   return (
-    <div className="regulars" aria-busy={isFetching}>
+    <div className="account-page" aria-busy={isFetching}>
       <title>{t.pageTitle(name)}</title>
-      <header>
+      <header className="page-head">
         {back}
-        <h1 className="week-bar__title">{name}</h1>
-        {data.student_name && <p className="page__meta">{data.student_email}</p>}
+        <div className="page-head__who">
+          <span className="avatar avatar--large" aria-hidden="true">
+            {initials(name)}
+          </span>
+          <div>
+            <h1 className="week-bar__title">{name}</h1>
+            {data.student_name && <p className="page__meta">{data.student_email}</p>}
+          </div>
+        </div>
       </header>
 
-      <StatementTable statement={data} monthLink={(first) => `?month=${first}`} />
-      <AddTime email={email} />
-      <ParentLink statement={data} />
+      <dl className="tiles" aria-label={t.tiles}>
+        <div className={`tile${owes ? " tile--owed" : ""}`}>
+          <dt>{owes ? t.tileOwed : t.tileLeft}</dt>
+          <dd>{formatMinutes(Math.abs(data.balance_minutes))}</dd>
+        </div>
+        <div className="tile">
+          <dt>{t.tileUsed(formatDay(data.month, { month: "long" }))}</dt>
+          <dd>{formatMinutes(used)}</dd>
+        </div>
+      </dl>
+
+      <div className="account-page__columns">
+        <StatementTable statement={data} monthLink={(first) => `?month=${first}`} />
+        <div className="account-page__side">
+          <AddTime email={email} />
+          <ParentLink statement={data} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -140,7 +167,7 @@ function AddTime({ email }: { email: string }) {
   ] as const;
 
   return (
-    <section aria-labelledby="add-time-heading">
+    <section className="card" aria-labelledby="add-time-heading">
       <h2 className="step__heading" id="add-time-heading">
         {t.addHeading}
       </h2>
@@ -223,7 +250,7 @@ function ParentLink({ statement }: { statement: Statement }) {
   const address = `${window.location.origin}${path}`;
 
   return (
-    <section aria-labelledby="parent-link-heading">
+    <section className="card" aria-labelledby="parent-link-heading">
       <h2 className="step__heading" id="parent-link-heading">
         {t.parentHeading}
       </h2>

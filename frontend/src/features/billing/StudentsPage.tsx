@@ -6,6 +6,7 @@ import { fetchAccounts } from "../../api/client";
 import { formatMinutes } from "../../dates";
 import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton, TextField } from "../../ui";
+import { initials } from "../panel/PanelLayout";
 
 export const ACCOUNTS_KEY = ["accounts"] as const;
 
@@ -34,7 +35,7 @@ export function StudentsPage() {
   return (
     <section className="regulars" aria-labelledby="students-heading">
       <title>{t.pageTitle}</title>
-      <header>
+      <header className="page-head">
         <h1 className="week-bar__title" id="students-heading">
           {t.heading}
         </h1>
@@ -46,12 +47,15 @@ export function StudentsPage() {
       {data.length === 0 ? (
         <p className="week__empty">{t.empty}</p>
       ) : (
-        <ul className="regulars__list">
+        <ul className="accounts">
           {data.map((account) => {
             const owes = account.balance_minutes < 0;
             return (
-              <li key={account.email} className="day account">
-                <div>
+              <li key={account.email} className="account">
+                <span className="avatar" aria-hidden="true">
+                  {initials(account.name ?? account.email)}
+                </span>
+                <div className="account__who">
                   <Link className="link account__name" to={studentPath(account.email)}>
                     {account.name ?? account.email}
                   </Link>
@@ -93,7 +97,7 @@ function OpenAccount() {
   }
 
   return (
-    <form className="form" noValidate onSubmit={handleSubmit}>
+    <form className="form form--inline" noValidate onSubmit={handleSubmit}>
       <TextField
         ref={input}
         label={t.find}

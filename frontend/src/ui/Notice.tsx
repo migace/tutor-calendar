@@ -12,6 +12,8 @@ interface NoticeProps {
   level?: 1 | 2;
   /** Move keyboard focus to the title when the notice appears. */
   focusOnMount?: boolean;
+  /** A decorative picture above the title. */
+  icon?: ReactNode;
   children?: ReactNode;
 }
 
@@ -20,6 +22,7 @@ export function Notice({
   tone = "neutral",
   level = 2,
   focusOnMount = false,
+  icon,
   children,
 }: NoticeProps) {
   const titleId = useId();
@@ -37,6 +40,11 @@ export function Notice({
       role={interrupts ? "alert" : undefined}
       aria-labelledby={titleId}
     >
+      {icon && (
+        <span className="notice__icon" aria-hidden="true">
+          {icon}
+        </span>
+      )}
       <Heading
         className="notice__title"
         id={titleId}
