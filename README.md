@@ -18,11 +18,11 @@ around that workflow.
 
 <p>
   <img src="docs/screenshots/week.png" width="100%"
-       alt="The tutor's week: a row for each day, and in it each lesson with its time, the student's name and address and a button to cancel. One lesson is asking whether to cancel, and says the student will not be charged.">
+       alt="The tutor's week: a sidebar with the panel's sections, a strip of the seven days with their lesson counts, and a row for each day with each lesson's time, the student's initials, name and address, a Weekly label and a button. One lesson is asking, on a red background, whether to cancel, and says the student is not charged.">
 </p>
 <p>
   <img src="docs/screenshots/booking.png" width="31%" align="top"
-       alt="The booking page on a phone: free times listed by day, one of them picked, and a bar at the bottom with the picked time and a Continue button.">
+       alt="The booking page on a phone: the three booking steps, a calendar of November and December with a dot under each day that has free times, the times of the chosen Thursday with 17:00 picked, and a bar at the bottom with the picked time and a Continue button.">
   <img src="docs/screenshots/statement.png" width="66%" align="top"
        alt="A student's statement for November: nine hours at the start of the month, three lessons of one hour each, six hours left.">
 </p>
