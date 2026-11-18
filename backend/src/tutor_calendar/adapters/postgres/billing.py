@@ -9,8 +9,8 @@ from sqlalchemy import Row, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from tutor_calendar.adapters.in_memory_billing import retry_pause
 from tutor_calendar.adapters.postgres.tables import ledger_entries, outbox
+from tutor_calendar.application.background import retry_pause
 from tutor_calendar.application.ports import Delivery, Email
 from tutor_calendar.domain.billing import EntryKind, LedgerEntry
 

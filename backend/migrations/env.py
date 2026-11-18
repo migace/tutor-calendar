@@ -4,6 +4,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
@@ -18,6 +19,9 @@ if config.config_file_name is not None:
 # Migrations are written by hand. The metadata is here so that a test can ask
 # Alembic whether the tables the code expects are the tables the migrations build.
 target_metadata = metadata
+
+# Any number that nothing else in this database uses as an advisory lock.
+MIGRATION_LOCK = 7_021_500_001
 
 
 def database_url() -> str:
@@ -37,6 +41,14 @@ def run_migrations_offline() -> None:
 
 
 def _run(connection: Connection) -> None:
+    # The image migrates when it starts, so replicas started together all
+    # arrive here at once. Without this each would read "nothing applied yet"
+    # and try to build the same tables. The lock belongs to the connection, not
+    # to a transaction: whoever waits for it only then reads which migrations
+    # are applied, finds them done, and does nothing. Closing the connection
+    # gives the lock back, also when a migration fails.
+    connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": MIGRATION_LOCK})
+    connection.commit()
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()

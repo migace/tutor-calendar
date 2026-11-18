@@ -7,7 +7,7 @@ here is specific to a hosting provider.
 
 | Piece | What runs | Notes |
 |---|---|---|
-| Web | the image's default command | Migrates the database, stores the demo tutor, then serves the API and the web app on `$PORT` (8000 if unset). Several can serve at once, but start one first, so that a new migration is applied by one process and not raced by several. |
+| Web | the image's default command | Migrates the database, stores the demo tutor, then serves the API and the web app on `$PORT` (8000 if unset). Several can serve at once and may start together: migrating takes a lock in the database, so one of them applies a new migration and the others wait and find it done. |
 | Worker | `python -m tutor_calendar.worker` in the same image | Charges finished lessons, queues reminders, sends mail. Safe to run several of. |
 | Database | PostgreSQL 17 | The `btree_gist` extension is created by the first migration, so the database user must be allowed to create extensions. |
 
@@ -136,6 +136,11 @@ These are known and not built:
   writing to the database.
 - **E-mail is in English only**, whatever language the reader chose in the
   interface.
+- **A migration runs while the previous version is still serving**, if there
+  is more than one web process. The lock keeps two processes from migrating at
+  once; it does not make old code understand a new schema. A change the old
+  code cannot live with has to be split over two releases, and nothing here
+  checks that it was.
 - **No backups are configured.** The ledger cannot be edited, which makes losing
   it worse, not better.
 

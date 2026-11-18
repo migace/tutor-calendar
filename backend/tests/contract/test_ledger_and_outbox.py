@@ -17,7 +17,7 @@ from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOut
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
 from tutor_calendar.application.errors import SlotTakenError
-from tutor_calendar.application.ports import BookingRepository, Email, Ledger, Outbox
+from tutor_calendar.application.ports import Email, Ledger, LessonStore, Outbox
 from tutor_calendar.domain.billing import EntryKind, LedgerEntry, charge_for
 from tutor_calendar.domain.scheduling import Actor, AlwaysFree, Student, Tutor
 
@@ -31,7 +31,7 @@ HELLO = Email("anna@example.com", "Hello", "A message")
 
 @dataclass
 class Stores:
-    bookings: BookingRepository
+    bookings: LessonStore
     ledger: Ledger
     outbox: Outbox
     tutor: Tutor

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
+from tutor_calendar.application.background import retry_pause
 from tutor_calendar.application.ports import Delivery, Email
 from tutor_calendar.domain.billing import LedgerEntry
 
@@ -41,11 +42,6 @@ class InMemoryLedger:
             if entry.tutor_id == tutor_id:
                 totals[entry.account] = totals.get(entry.account, 0) + entry.minutes
         return totals
-
-
-def retry_pause(attempts: int) -> timedelta:
-    """How long to wait before trying a message again: 1, 2, 4 ... minutes, at most an hour."""
-    return min(timedelta(minutes=2 ** (attempts - 1)), timedelta(hours=1))
 
 
 @dataclass(slots=True)

@@ -14,7 +14,7 @@ from tutor_calendar.adapters.in_memory_bookings import InMemoryBookingRepository
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
 from tutor_calendar.application.errors import SeriesConflictError, SlotTakenError
-from tutor_calendar.application.ports import BookingRepository
+from tutor_calendar.application.ports import LessonStore
 from tutor_calendar.domain.scheduling import (
     Actor,
     AlwaysFree,
@@ -62,16 +62,14 @@ def a_series(tutor: Tutor, weeks: int = 3) -> tuple[LessonSeries, list[Booking]]
 
 
 class LessonChangesContract:
-    async def test_a_lesson_is_found_by_its_id(
-        self, repository: BookingRepository, tutor: Tutor
-    ) -> None:
+    async def test_a_lesson_is_found_by_its_id(self, repository: LessonStore, tutor: Tutor) -> None:
         lesson = await repository.add(a_booking(tutor.id), "key-1")
 
         assert await repository.get(lesson.id) == lesson
         assert await repository.get(uuid4()) is None
 
     async def test_a_cancellation_is_stored_with_all_its_details(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         lesson = await repository.add(a_booking(tutor.id), "key-1")
         late = lesson.cancel(Actor.STUDENT, FIRST_SLOT - HOUR, FreeUntil(timedelta(hours=24)))
@@ -84,7 +82,7 @@ class LessonChangesContract:
         assert stored.is_charged
 
     async def test_a_cancelled_lesson_gives_its_time_back(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         lesson = await repository.add(a_booking(tutor.id), "key-1")
         await repository.apply([(lesson, cancelled(lesson))])
@@ -98,9 +96,7 @@ class LessonChangesContract:
             [replacement, cancelled(lesson)],
         )
 
-    async def test_a_no_show_keeps_its_time(
-        self, repository: BookingRepository, tutor: Tutor
-    ) -> None:
+    async def test_a_no_show_keeps_its_time(self, repository: LessonStore, tutor: Tutor) -> None:
         lesson = await repository.add(a_booking(tutor.id), "key-1")
         await repository.apply([(lesson, lesson.mark_no_show(FIRST_SLOT + HOUR))])
 
@@ -108,7 +104,7 @@ class LessonChangesContract:
             await repository.add(a_booking(tutor.id), "key-2")
 
     async def test_a_change_based_on_a_stale_read_is_not_applied(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         lesson = await repository.add(a_booking(tutor.id), "key-1")
         by_student = cancelled(lesson, Actor.STUDENT)
@@ -119,7 +115,7 @@ class LessonChangesContract:
         assert await repository.get(lesson.id) == by_student
 
     async def test_of_simultaneous_changes_to_one_lesson_exactly_one_is_applied(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         lesson = await repository.add(a_booking(tutor.id), "key-1")
         attempts = [
@@ -130,7 +126,7 @@ class LessonChangesContract:
         assert sorted(await asyncio.gather(*attempts)) == [0] * 11 + [1]
 
     async def test_several_changes_are_counted_one_by_one(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         first = await repository.add(a_booking(tutor.id, FIRST_SLOT), "key-1")
         second = await repository.add(a_booking(tutor.id, FIRST_SLOT + HOUR), "key-2")
@@ -145,7 +141,7 @@ class LessonChangesContract:
 
 class SeriesContract:
     async def test_a_series_is_stored_with_its_lessons(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         series, lessons = a_series(tutor)
 
@@ -158,7 +154,7 @@ class SeriesContract:
         assert await repository.get_series(uuid4()) is None
 
     async def test_series_lessons_block_their_times_like_any_other(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         series, lessons = a_series(tutor)
         await repository.add_series(series, lessons, skip_conflicts=False)
@@ -167,7 +163,7 @@ class SeriesContract:
             await repository.add(a_booking(tutor.id, FIRST_SLOT + WEEK), "key-1")
 
     async def test_a_clash_stores_nothing_at_all(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         in_the_way = await repository.add(a_booking(tutor.id, FIRST_SLOT + WEEK), "key-1")
         series, lessons = a_series(tutor)
@@ -183,7 +179,7 @@ class SeriesContract:
         ) == [in_the_way]
 
     async def test_clashing_lessons_can_be_left_out(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         # Overlaps the second lesson without starting at the same time.
         await repository.add(a_booking(tutor.id, FIRST_SLOT + WEEK + 0.5 * HOUR), "key-1")
@@ -195,7 +191,7 @@ class SeriesContract:
         assert await repository.lessons_of_series(series.id) == stored
 
     async def test_a_series_with_every_lesson_in_the_way_is_not_stored(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         await repository.add(a_booking(tutor.id, FIRST_SLOT), "key-1")
         series, lessons = a_series(tutor, weeks=1)
@@ -204,7 +200,7 @@ class SeriesContract:
         assert await repository.get_series(series.id) is None
 
     async def test_a_cancelled_lesson_is_not_in_the_way_of_a_series(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         old = await repository.add(a_booking(tutor.id, FIRST_SLOT + WEEK), "key-1")
         await repository.apply([(old, cancelled(old))])
@@ -213,7 +209,7 @@ class SeriesContract:
         assert await repository.add_series(series, lessons, skip_conflicts=False) == lessons
 
     async def test_each_tutor_has_their_own_series(
-        self, repository: BookingRepository, tutor: Tutor, other_tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor, other_tutor: Tutor
     ) -> None:
         mine, my_lessons = a_series(tutor)
         theirs, their_lessons = a_series(other_tutor)
@@ -224,7 +220,7 @@ class SeriesContract:
         assert await repository.series(other_tutor.id) == [theirs]
 
     async def test_a_series_and_single_bookings_racing_for_the_same_times_never_overlap(
-        self, repository: BookingRepository, tutor: Tutor
+        self, repository: LessonStore, tutor: Tutor
     ) -> None:
         series, lessons = a_series(tutor, weeks=6)
         rivals = [
@@ -254,7 +250,7 @@ class SeriesContract:
 
 class TestInMemory(LessonChangesContract, SeriesContract):
     @pytest.fixture
-    def repository(self) -> BookingRepository:
+    def repository(self) -> LessonStore:
         return InMemoryBookingRepository()
 
     @pytest.fixture
@@ -269,7 +265,7 @@ class TestInMemory(LessonChangesContract, SeriesContract):
 @pytest.mark.integration
 class TestPostgres(LessonChangesContract, SeriesContract):
     @pytest.fixture
-    def repository(self, engine: AsyncEngine) -> BookingRepository:
+    def repository(self, engine: AsyncEngine) -> LessonStore:
         return PostgresBookingRepository(engine)
 
     @pytest.fixture
