@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import { useT } from "../../i18n";
 import { Button, Notice } from "../../ui";
+import { CheckIcon } from "../frame/icons";
 
 interface BookingConfirmationProps {
   /** The booked time, already formatted for the visitor. */
@@ -23,10 +24,10 @@ export function BookingConfirmation({
   const t = useT().booking;
   return (
     // Moving focus here makes a screen reader announce the result of the form.
-    <Notice tone="success" title={t.bookedTitle} focusOnMount>
+    <Notice tone="success" title={t.bookedTitle} focusOnMount icon={<CheckIcon />}>
       <p className="notice__lead">{slotLabel}</p>
       <p>{t.lessonWith(lessonMinutes, tutorName)}</p>
-      <p>
+      <p className="notice__link">
         {/* The token is in the fragment, which browsers do not send to servers. */}
         <Link className="link" to={{ pathname: "/booking", hash: `token=${manageToken}` }}>
           {t.viewOrCancel}

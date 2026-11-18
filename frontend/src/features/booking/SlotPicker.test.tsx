@@ -26,17 +26,43 @@ function renderPicker(props: Partial<Parameters<typeof SlotPicker>[0]> = {}) {
 }
 
 describe("SlotPicker", () => {
-  it("shows one section per day with times in the display time zone", () => {
+  it("offers only the days with free times, and starts on the first", () => {
+    renderPicker();
+
+    const days = screen.getByRole("group", { name: "Pick a day" });
+    expect(within(days).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Tuesday 17 November, 2 free times",
+      "Saturday 21 November, 1 free time",
+    ]);
+    expect(within(days).getByRole("button", { name: /Tuesday/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("shows the times of the chosen day in the display time zone", async () => {
     renderPicker();
 
     const tuesday = screen.getByRole("region", { name: "Tuesday 17 November" });
-    const saturday = screen.getByRole("region", { name: "Saturday 21 November" });
-
     expect(within(tuesday).getAllByRole("button").map((b) => b.textContent)).toEqual([
       "15:00",
       "16:00",
     ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Saturday 21 November, 1 free time" }));
+
+    const saturday = screen.getByRole("region", { name: "Saturday 21 November" });
     expect(within(saturday).getAllByRole("button").map((b) => b.textContent)).toEqual(["09:00"]);
+    expect(screen.queryByRole("region", { name: "Tuesday 17 November" })).toBeNull();
+  });
+
+  it("opens on the day of the time already chosen", () => {
+    renderPicker({ selected: slots[2]! });
+
+    expect(screen.getByRole("button", { name: "Saturday 21 November, 09:00" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("shows the same instants at different wall-clock times in another zone", () => {

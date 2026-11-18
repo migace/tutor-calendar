@@ -5,6 +5,7 @@ import { ApiError, fetchSlots, type Booking, type Slot } from "../../api/client"
 import { formatLesson } from "../../dates";
 import { useT } from "../../i18n";
 import { Button, Notice, PageSkeleton } from "../../ui";
+import { CheckIcon } from "../frame/icons";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { BookingForm } from "./BookingForm";
 import { SlotPicker } from "./SlotPicker";
@@ -70,60 +71,96 @@ export function BookingPage({
   const describe = (slot: { start: string; end: string }) => formatLesson(slot, timeZone);
   const refreshSlots = () => queryClient.invalidateQueries({ queryKey: ["slots", slug] });
 
+  const step = { pick: 1, details: 2, done: 3 }[stage.step];
+
   return (
-    <main className="page" id="content">
+    <main className="page page--booking" id="content">
       {/* React moves this into <head>. Each page names itself in the browser tab. */}
       <title>{t.booking.pageTitle(tutor.display_name)}</title>
-      <header className="page__header">
-        <p className="page__eyebrow">{t.booking.eyebrow}</p>
-        <h1 className="page__title">{tutor.display_name}</h1>
-        <p className="page__meta">
-          {t.booking.lessonLength(tutor.lesson_minutes)} · {t.common.timesShownIn}{" "}
-          <strong>{timeZone}</strong>
-          {timeZone !== tutor.timezone && <> {t.booking.tutorIsIn(tutor.timezone)}</>}
-        </p>
-      </header>
+      <div className="booking">
+        <header className="booking__intro">
+          <p className="page__eyebrow">{t.booking.eyebrow}</p>
+          <h1 className="page__title">{tutor.display_name}</h1>
+          <p className="page__meta">
+            {t.booking.lessonLength(tutor.lesson_minutes)} · {t.common.timesShownIn}{" "}
+            <strong>{timeZone}</strong>
+            {timeZone !== tutor.timezone && <> {t.booking.tutorIsIn(tutor.timezone)}</>}
+          </p>
+          <Steps current={step} />
+        </header>
 
-      {stage.step === "pick" && (
-        <PickTime
-          slots={slots}
-          // A time that vanished from a refreshed list is no longer selected.
-          selected={slots.find((slot) => slot.start === stage.selected?.start) ?? null}
-          lostSlot={stage.lostSlot}
-          timeZone={timeZone}
-          describe={describe}
-          onSelect={(slot) => setStage({ step: "pick", selected: slot, lostSlot: false })}
-          onContinue={(slot) => setStage({ step: "details", slot })}
-        />
-      )}
+        <div className="booking__card">
+          {stage.step === "pick" && (
+            <PickTime
+              slots={slots}
+              // A time that vanished from a refreshed list is no longer selected.
+              selected={slots.find((slot) => slot.start === stage.selected?.start) ?? null}
+              lostSlot={stage.lostSlot}
+              timeZone={timeZone}
+              describe={describe}
+              onSelect={(slot) => setStage({ step: "pick", selected: slot, lostSlot: false })}
+              onContinue={(slot) => setStage({ step: "details", slot })}
+            />
+          )}
 
-      {stage.step === "details" && (
-        <BookingForm
-          slug={slug}
-          slot={stage.slot}
-          slotLabel={describe(stage.slot)}
-          onChangeTime={() => setStage({ step: "pick", selected: stage.slot, lostSlot: false })}
-          onSlotUnavailable={() => {
-            setStage({ step: "pick", selected: null, lostSlot: true });
-            void refreshSlots();
-          }}
-          onBooked={(booking) => {
-            setStage({ step: "done", booking });
-            void refreshSlots();
-          }}
-        />
-      )}
+          {stage.step === "details" && (
+            <BookingForm
+              slug={slug}
+              slot={stage.slot}
+              slotLabel={describe(stage.slot)}
+              onChangeTime={() => setStage({ step: "pick", selected: stage.slot, lostSlot: false })}
+              onSlotUnavailable={() => {
+                setStage({ step: "pick", selected: null, lostSlot: true });
+                void refreshSlots();
+              }}
+              onBooked={(booking) => {
+                setStage({ step: "done", booking });
+                void refreshSlots();
+              }}
+            />
+          )}
 
-      {stage.step === "done" && (
-        <BookingConfirmation
-          slotLabel={describe(stage.booking)}
-          tutorName={tutor.display_name}
-          lessonMinutes={tutor.lesson_minutes}
-          manageToken={stage.booking.manage_token}
-          onBookAnother={() => setStage(START)}
-        />
-      )}
+          {stage.step === "done" && (
+            <BookingConfirmation
+              slotLabel={describe(stage.booking)}
+              tutorName={tutor.display_name}
+              lessonMinutes={tutor.lesson_minutes}
+              manageToken={stage.booking.manage_token}
+              onBookAnother={() => setStage(START)}
+            />
+          )}
+        </div>
+      </div>
     </main>
+  );
+}
+
+/** Where the visitor is: pick a time, give details, done. */
+function Steps({ current }: { current: number }) {
+  const t = useT().booking;
+  const names = [t.stepTime, t.stepDetails, t.stepDone];
+  return (
+    <ol className="steps" aria-label={t.steps}>
+      {names.map((name, index) => {
+        const step = index + 1;
+        const state = step < current ? "done" : step === current ? "current" : "next";
+        return (
+          <li
+            key={name}
+            className={`steps__item steps__item--${state}`}
+            aria-current={state === "current" ? "step" : undefined}
+          >
+            <span className="steps__number" aria-hidden="true">
+              {state === "done" ? <CheckIcon /> : step}
+            </span>
+            <span className="steps__name">
+              <span className="visually-hidden">{t.stepOf(step, names.length)}: </span>
+              {name}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

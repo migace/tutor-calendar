@@ -11,7 +11,8 @@ import { AvailabilityPage } from "./features/panel/AvailabilityPage";
 import { PanelLayout } from "./features/panel/PanelLayout";
 import { SeriesPage } from "./features/panel/SeriesPage";
 import { WeekPage } from "./features/panel/WeekPage";
-import { LANGUAGES, setLanguage, useLanguage, useT } from "./i18n";
+import { SiteHeader } from "./features/frame/Frame";
+import { useT } from "./i18n";
 import { Notice } from "./ui";
 
 function PublicBookingPage() {
@@ -67,8 +68,10 @@ function DemoBanner() {
   return (
     <aside className="demo-banner">
       <p>
-        {t.banner}{" "}
-        <Link className="link" to={inPanel ? "/book/demo" : "/sign-in"}>
+        <span className="demo-banner__badge" aria-hidden="true">
+          Demo
+        </span> {t.banner}{" "}
+        <Link className="demo-banner__link" to={inPanel ? "/book/demo" : "/sign-in"}>
           {inPanel ? t.toBooking : t.toPanel}
         </Link>
       </p>
@@ -76,33 +79,14 @@ function DemoBanner() {
   );
 }
 
-function LanguageSwitch() {
-  const t = useT().common;
-  const language = useLanguage();
-  return (
-    <div className="language" role="group" aria-label={t.language}>
-      {LANGUAGES.map(({ code, name }) => (
-        <button
-          key={code}
-          type="button"
-          className="language__option"
-          // Each name is in its own language, and is announced that way.
-          lang={code}
-          aria-pressed={language === code}
-          onClick={() => setLanguage(code)}
-        >
-          {name}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function App() {
+  // The panel has a frame of its own, with the language switch in its sidebar.
+  const inPanel = useLocation().pathname.startsWith("/panel");
   return (
     <>
       <SkipLink />
       <DemoBanner />
+      {!inPanel && <SiteHeader />}
       <Routes>
         {/* Until tutors can sign up, the demo tutor's page doubles as the home page. */}
         <Route path="/" element={<Navigate to="/book/demo" replace />} />
@@ -120,9 +104,6 @@ export function App() {
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <footer className="site-footer">
-        <LanguageSwitch />
-      </footer>
     </>
   );
 }

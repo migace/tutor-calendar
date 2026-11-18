@@ -5,6 +5,7 @@ import { ApiError, changeLesson, fetchWeek, type Lesson } from "../../api/client
 import { formatDay, formatHours } from "../../dates";
 import { useT, type Messages } from "../../i18n";
 import { Button, ConfirmAction, Notice, PageSkeleton } from "../../ui";
+import { initials } from "./PanelLayout";
 
 function describeWeek(first: string, last: string): string {
   const sameMonth = first.slice(0, 7) === last.slice(0, 7);
@@ -94,14 +95,38 @@ export function WeekPage() {
         </p>
       )}
 
+      <nav className="strip" aria-label={t.overview}>
+        <ol className="strip__days">
+          {week.days.map((day) => {
+            const count = day.lessons.filter((l) => l.status !== "cancelled").length;
+            return (
+              <li key={day.date}>
+                <a
+                  className="strip__day"
+                  href={`#day-${day.date}`}
+                  aria-current={day.date === week.today ? "date" : undefined}
+                >
+                  <span className="strip__weekday">
+                    {formatDay(day.date, { weekday: "short" }).replace(/\.$/, "")}
+                  </span>
+                  <span className="strip__number">{formatDay(day.date, { day: "numeric" })}</span>
+                  <span className="strip__count">{t.lessons(count)}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+
       <ol className="week">
         {week.days.map((day) => {
           const isToday = day.date === week.today;
-          const headingId = `day-${day.date}`;
+          const headingId = `day-${day.date}-heading`;
           return (
             <li
               key={day.date}
               className="week__day"
+              id={`day-${day.date}`}
               aria-labelledby={headingId}
               aria-current={isToday ? "date" : undefined}
             >
@@ -131,6 +156,9 @@ export function WeekPage() {
                         <span className="lesson__time" id={timeId}>
                           {formatHours(lesson, week.timezone)}
                         </span>
+                        <span className="avatar" aria-hidden="true">
+                          {initials(lesson.student_name)}
+                        </span>
                         <div className="lesson__who">
                           <span className="lesson__student" id={studentId}>
                             {lesson.student_name}
@@ -141,8 +169,14 @@ export function WeekPage() {
                         </div>
                         {(lesson.series_id || status) && (
                           <div className="lesson__notes">
-                            {lesson.series_id && <span className="lesson__tag">{t.weekly}</span>}
-                            {status && <span className="lesson__status">{status}</span>}
+                            {lesson.series_id && <span className="chip chip--accent">{t.weekly}</span>}
+                            {status && (
+                              <span
+                                className={`chip${lesson.status === "no_show" || lesson.cancelled_late ? " chip--warning" : ""}`}
+                              >
+                                {status}
+                              </span>
+                            )}
                           </div>
                         )}
                         {lesson.status === "confirmed" && (
