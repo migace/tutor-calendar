@@ -18,6 +18,14 @@ updates:
     groups:
       frontend:
         patterns: ["*"]
+    ignore:
+      # TypeScript 7 is a new compiler: typescript-eslint refuses to run on
+      # it and openapi-typescript fails to load. Take it when both do.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # The types follow the Node that CI and the image run, which is 24.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /
