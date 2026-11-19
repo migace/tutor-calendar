@@ -7,7 +7,7 @@ here is specific to a hosting provider.
 
 | Piece | What runs | Notes |
 |---|---|---|
-| Web | the image's default command | Migrates the database, stores the demo tutor, then serves the API and the web app on `$PORT` (8000 if unset). Several can serve at once and may start together: migrating takes a lock in the database, so one of them applies a new migration and the others wait and find it done. |
+| Web | the image's default command, which ends in `python -m tutor_calendar.web` | Migrates the database, stores the demo tutor, then serves the API and the web app on `$PORT` (8000 if unset). Several can serve at once and may start together: migrating takes a lock in the database, so one of them applies a new migration and the others wait and find it done. |
 | Worker | `python -m tutor_calendar.worker` in the same image | Charges finished lessons, queues reminders, sends mail. Safe to run several of. |
 | Database | PostgreSQL 17 | The `btree_gist` extension is created by the first migration, so the database user must be allowed to create extensions. |
 
@@ -31,6 +31,8 @@ Everything is set through environment variables.
 | `TC_COOKIE_SECURE` | no | Leave at its default of `true`. The site must be served over HTTPS. |
 | `TC_CLIENT_ADDRESS_HEADER` | behind a proxy | The header in which the proxy writes the visitor's address, such as `CF-Connecting-IP` or `X-Real-IP`. The request limits tell visitors apart by it. Without it everyone behind the proxy shares one allowance. See below. |
 | `TC_RATE_LIMITS` | no | `false` turns the request limits off. Only for a load test. |
+| `TC_METRICS_TOKEN` | to read metrics | At least 32 random characters. Whoever sends it as `Authorization: Bearer ...` may read `/metrics`. Without it the endpoint answers `404`. A shorter one stops the process from starting. See [Watching it](#watching-it). |
+| `TC_LOG_FORMAT` | no | `json`, the default, is one object per line. `text` is for reading in a terminal. |
 | `WEB_CONCURRENCY` | no | Number of API processes in the web container. |
 
 `TC_STATIC_DIR` is already set inside the image, and `TC_CORS_ORIGINS` is only
@@ -95,6 +97,8 @@ cp demo.env.example .env
 
 Fill in `.env` as its comments say: the public address, a signing key and a
 database password. Compose refuses to start while any of the three is missing.
+A fourth, `TC_METRICS_TOKEN`, is optional: without it nobody can read the
+metrics, which on a server whose port is open to everyone is the right default.
 Then:
 
 ```bash
@@ -143,10 +147,110 @@ These are known and not built:
   checks that it was.
 - **No backups are configured.** The ledger cannot be edited, which makes losing
   it worse, not better.
+- **Nothing watches it.** The logs and the metrics below are there to be read,
+  and nothing reads them: no alert fires, there is no dashboard, and the logs
+  stay in Docker's files on the server until they are rotated away.
 
-## Checking a deployment
+## Watching it
 
-- `GET /health` answers `200` when the process is up.
-- `GET /health/ready` answers `200` when the database can be reached, and `503`
-  otherwise. Use this one for readiness checks.
-- The API documents itself at `/docs`.
+[ADR 0011](adr/0011-logs-readiness-and-metrics.md) has the reasons for all of
+this. The API documents itself at `/docs`.
+
+### Is it up, and can it serve?
+
+Two questions, with an endpoint each. Neither counts against the request
+limits.
+
+| | Answers | Looks at | Use it for |
+|---|---|---|---|
+| `GET /health` | `200` while the process can answer at all | nothing | **Liveness**: deciding to restart a process that has hung. A database that is slow or away must not get the application restarted, and this cannot be affected by one. |
+| `GET /health/ready` | `200` when the database answers within two seconds and has every migration this version needs, `503` with the reason otherwise | the database | **Readiness**: deciding whether to send requests here, and whether the things that depend on a migrated database may start. |
+
+Both Compose files point their health check at `/health/ready`. Compose uses
+"healthy" as a gate: the worker and the nightly reset wait for it, and so does
+`up --wait`. Nothing in Compose restarts a container for being unhealthy, so
+there is no liveness check to configure there. On a platform that has both
+kinds of probe, give each its own endpoint.
+
+A database that a newer version has already migrated further still counts as
+ready, so that the previous version keeps serving while its replacement comes
+up.
+
+### Logs
+
+Every process writes one JSON object per line to standard output: the
+migration, the seed, the web process and the worker.
+
+```json
+{"time": "2026-11-19T10:08:24.644+00:00", "level": "info", "service": "web", "logger": "tutor_calendar.access", "message": "GET /api/v1/tutors/demo/slots 200", "request_id": "4a2d19e6146e49bd9f79ab3e4c75aed8", "method": "GET", "path": "/api/v1/tutors/demo/slots", "route": "/api/v1/tutors/{slug}/slots", "status": 200, "duration_ms": 6.6}
+```
+
+- **`request_id`** is on every line written while a request is being
+  answered, and comes back to the caller in the `X-Request-ID` header, also
+  on an error. A caller or a proxy may send its own in that header: 8 to 64
+  characters of letters, digits, `.`, `_` and `-`. Anything else is replaced.
+- **`service`** is `migrate`, `demo`, `web` or `worker`.
+- **A request's line** has the path without its query string. Students appear
+  by id. A part of a path that contains `@` is written as `[address]`.
+- **Health checks and metric readings that succeed are not written**, or they
+  would be most of the log.
+- **An error** is one line with the traceback in `error`.
+
+To follow one request: `docker compose logs web | grep <the id>`.
+
+The worker is the exception to "no addresses in the log". Without
+`TC_SMTP_HOST` it writes each message it would have sent, recipient and links
+included. That is what the demo does, so the demo's worker log holds the
+addresses visitors typed.
+
+### Metrics
+
+`GET /metrics` answers in the Prometheus text format to whoever sends
+`TC_METRICS_TOKEN`, and `404` when no token is set:
+
+```bash
+curl -H "Authorization: Bearer $TC_METRICS_TOKEN" https://calendar.example.com/metrics
+```
+
+| Metric | What it says |
+|---|---|
+| `tutor_calendar_http_request_duration_seconds` | A histogram of the time taken to answer, by `method`, `route` (the template, such as `/api/v1/tutors/{slug}/slots`) and `status`. Its `_count` is the number of requests. What no API route claimed is under `static` or `unmatched`. |
+| `tutor_calendar_booking_requests_total` | Booking requests by `outcome`: `booked`, `taken` (someone else got the time first), `replayed` (a repeat of an earlier request, answered with the same booking) and `not_offered` (too soon, or not a time the tutor teaches). |
+| `tutor_calendar_outbox_waiting_messages` | E-mail queued and not sent, including messages waiting to be tried again. |
+| `tutor_calendar_outbox_oldest_waiting_seconds` | How long the oldest of them has waited. |
+| `tutor_calendar_lessons_awaiting_settlement` | Lessons that are over or cancelled and that the worker has not charged yet. |
+| `tutor_calendar_worker_last_success_timestamp_seconds` | When each `job` (`settle`, `remind`, `deliver`) last finished without an error, as Unix time. |
+| `tutor_calendar_database_up` | 1 when the database answered this reading. At 0 the four above are missing, not zero. |
+| `process_resident_memory_bytes`, `process_cpu_seconds_total` | The web process itself. |
+
+The rows about the outbox, the lessons and the worker are read from the
+database at the moment of asking, so they describe the worker although the web
+process serves them, and they are still there when the worker is not.
+
+What would be worth an alert, written as Prometheus would want it. None of
+these is set up anywhere:
+
+```
+# The worker has stopped, or one of its jobs keeps failing.
+time() - tutor_calendar_worker_last_success_timestamp_seconds > 300
+
+# Mail is not going out.
+tutor_calendar_outbox_oldest_waiting_seconds > 900
+
+# The application is failing.
+sum(rate(tutor_calendar_http_request_duration_seconds_count{status=~"5.."}[5m])) > 0
+
+# People are losing races for the same time more than they are winning them.
+rate(tutor_calendar_booking_requests_total{outcome="taken"}[1h])
+  > rate(tutor_calendar_booking_requests_total{outcome="booked"}[1h])
+```
+
+What the numbers cannot do:
+
+- **Requests and bookings are counted in the web process's memory** and start
+  at zero when it restarts. With `WEB_CONCURRENCY` above 1 each process counts
+  on its own and a reading gets whichever answered, so run one web process if
+  these two are to mean anything.
+- **Nothing scrapes them.** Point a Prometheus, or anything that speaks its
+  format, at `/metrics` with the token.
+- **There are no traces.**

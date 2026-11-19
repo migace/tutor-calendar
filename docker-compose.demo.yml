@@ -25,6 +25,8 @@ x-app-environment: &app-environment
   TC_DEMO_MODE: "true"
   # Empty means: tell visitors apart by the address of the connection.
   TC_CLIENT_ADDRESS_HEADER: ${CLIENT_ADDRESS_HEADER:-}
+  # Empty means: /metrics answers 404. The port below is open to the internet.
+  TC_METRICS_TOKEN: ${TC_METRICS_TOKEN:-}
 
 services:
   db:
@@ -53,6 +55,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Readiness, not liveness: "healthy" is what lets the worker and the reset
+    # start, and they need the migrated database this checks for. Nothing here
+    # restarts a container for being unhealthy, which is what /health is for.
     healthcheck:
       test:
         - CMD

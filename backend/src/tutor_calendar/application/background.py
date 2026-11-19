@@ -7,12 +7,14 @@ records having done it in a way that cannot be recorded twice. See ADR 0007.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from tutor_calendar.application.emails import lesson_reminder
 from tutor_calendar.application.ports import (
     Clock,
     Delivery,
+    JobLog,
     Ledger,
     Mailer,
     ManageLinks,
@@ -25,6 +27,11 @@ from tutor_calendar.domain.billing import charge_for
 
 BATCH = 100
 REMINDER_LEAD = timedelta(hours=24)
+
+# The names the jobs are recorded under in the ``JobLog``.
+SETTLE = "settle"
+REMIND = "remind"
+DELIVER = "deliver"
 
 
 class SettleLessons:
@@ -99,3 +106,43 @@ class DeliverOutbox:
 
     async def execute(self) -> Delivery:
         return await self._outbox.deliver_due(self._clock.now(), self._mailer.send, BATCH)
+
+
+@dataclass(frozen=True, slots=True)
+class BackgroundWork:
+    """How far behind the background jobs are, at one moment."""
+
+    unsent_messages: int
+    # Zero when nothing is waiting.
+    oldest_unsent_age: timedelta
+    lessons_awaiting_settlement: int
+    # Job name to the last time it finished without an error.
+    last_success: dict[str, datetime]
+
+
+class MeasureBackgroundWork:
+    """Look at the queues the jobs above empty, without touching them.
+
+    Plain numbers come back. Turning them into metrics is the business of
+    whoever asked. See ADR 0011.
+    """
+
+    def __init__(
+        self, outbox: Outbox, lessons: SettlementQueue, jobs: JobLog, clock: Clock
+    ) -> None:
+        self._outbox = outbox
+        self._lessons = lessons
+        self._jobs = jobs
+        self._clock = clock
+
+    async def execute(self) -> BackgroundWork:
+        now = self._clock.now()
+        backlog = await self._outbox.backlog()
+        oldest = backlog.oldest_queued_at
+        return BackgroundWork(
+            unsent_messages=backlog.waiting,
+            # Never negative, whatever the clocks of two machines say.
+            oldest_unsent_age=max(now - oldest, timedelta(0)) if oldest else timedelta(0),
+            lessons_awaiting_settlement=await self._lessons.count_awaiting_settlement(now),
+            last_success=await self._jobs.last_successes(),
+        )

@@ -109,6 +109,19 @@ addresses to choose from.
 [ADR 0009](docs/adr/0009-request-limits-in-the-process.md) says what was done
 about each, and where the demo's limit can still be walked around.
 
+**It can say how it is doing without saying who was there.** Every process
+writes its log as JSON lines, and every line written for a request carries
+that request's id, which also goes back to the caller. A request's line keeps
+the student's id and never has an address, a token or a query string in it.
+Liveness and readiness are separate questions, and readiness means the
+database has this version's migrations, not just that it answers. Metrics
+count bookings made, lost to someone quicker and repeated, and say how far
+behind the worker is, read from the database so that a dead worker still shows
+up. The use cases log and count nothing themselves, and a test keeps it so.
+[ADR 0011](docs/adr/0011-logs-readiness-and-metrics.md) explains why this is a
+Prometheus endpoint behind a token and not OpenTelemetry, and what it leaves
+out.
+
 **Fakes that cannot drift from the real thing.** Fast tests run against
 in-memory repositories. Each port has one set of contract tests that runs
 against both the fake and PostgreSQL, so the fake cannot quietly become more
@@ -186,7 +199,7 @@ two places where adapters are plugged into the use cases.
 
 ```mermaid
 flowchart TB
-    api["api/<br/>routes, schemas, request limits"]
+    api["api/<br/>routes, schemas, request limits,<br/>request log and metrics"]
     workerpy["worker.py<br/>background jobs"]
     adapters["adapters/<br/>PostgreSQL, mail, clock, signed links,<br/>in-memory fakes for tests"]
     application["application/<br/>use cases and the ports they need"]
@@ -238,7 +251,8 @@ documents itself at <http://localhost:8000/docs>.
 
 To see the tutor panel, go to <http://localhost:5173/panel> and ask for a
 sign-in link for `demo@example.com`. With no mail server configured the worker
-writes each message to its output, link included.
+writes each message to its output, link included. The worker's output is JSON
+lines; `TC_LOG_FORMAT=text` in `backend/.env` makes the message readable.
 
 Links for managing a booking and for reading a statement are signed with
 `TC_SECRET_KEY`. Without it the API makes up a key at start and says so, those
@@ -280,7 +294,9 @@ backend/src/tutor_calendar/
   application/   use cases and the ports they need
   adapters/      implementations of ports: PostgreSQL, in-memory fakes, clock
   api/           FastAPI routes, schemas and the composition root
+  web.py         the web process as the image runs it
   worker.py      the background process: charges lessons, queues reminders, sends mail
+  logs.py        the one log format every process writes
 backend/scripts/ the load test
 backend/tests/
   unit/          domain, use cases, the architecture rule
@@ -313,9 +329,11 @@ docs/adr/        architecture decision records
 
 Said here so that nobody has to find out by trying:
 
-- **The demo runs on one small server with no backups and no monitoring.** It
-  is `docker-compose.demo.yml`, as [docs/deployment.md](docs/deployment.md)
-  describes, and it may be down.
+- **The demo runs on one small server with no backups, and nobody is told when
+  it breaks.** It is `docker-compose.demo.yml`, as
+  [docs/deployment.md](docs/deployment.md) describes, and it may be down. It
+  writes structured logs and serves metrics, but nothing collects either: no
+  alerts, no dashboard, no traces, and the logs stay on the server.
 - **Nobody has used it with a screen reader**, and nobody but its author has
   used it at all.
 - **The request limits can be walked around** by someone who reaches the demo's
@@ -330,6 +348,8 @@ Said here so that nobody has to find out by trying:
   changed, only ended and started again.
 - **E-mail is in English only**, and old messages, tokens and sessions are
   never cleaned up.
+- **The worker's log is not free of addresses.** Without a mail server it
+  writes out each message it would have sent, which is how the demo runs.
 
 Deliberately out of scope: online payments, Google Calendar sync, SMS, schools
 with several teachers, a native mobile app.

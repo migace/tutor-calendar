@@ -15,13 +15,17 @@ from tutor_calendar.adapters.manage_links import HmacManageLinks, HmacStatementL
 from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOutbox
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.credentials import PostgresCredentialStore
+from tutor_calendar.adapters.postgres.jobs import PostgresJobLog
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
+from tutor_calendar.api.metrics import Metrics
+from tutor_calendar.api.observed import Observed
 from tutor_calendar.api.rate_limit import ANY_REQUEST, Limited, RateLimiter
 from tutor_calendar.api.routes import (
     auth,
     billing,
     health,
     managed_booking,
+    metrics,
     panel,
     series,
     slots,
@@ -32,10 +36,12 @@ from tutor_calendar.api.web_app import HttpsRedirect, SecurityHeaders, WebApp
 from tutor_calendar.application.ports import (
     Clock,
     CredentialStore,
+    JobLog,
     Ledger,
     LessonStore,
     Mailer,
     ManageLinks,
+    Outbox,
     StatementLinks,
     TutorRepository,
 )
@@ -65,6 +71,8 @@ def create_app(
     links: ManageLinks | None = None,
     ledger: Ledger | None = None,
     statement_links: StatementLinks | None = None,
+    outbox: Outbox | None = None,
+    jobs: JobLog | None = None,
 ) -> FastAPI:
     """Composition root: the only place where adapters are chosen and wired together.
 
@@ -73,7 +81,9 @@ def create_app(
     """
     settings = settings or Settings()
     # Creating the engine opens no connection; that happens on first use.
-    engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    # A failed statement is logged without the values that were sent with it:
+    # they are names and addresses. See ADR 0011.
+    engine = create_async_engine(settings.database_url, pool_pre_ping=True, hide_parameters=True)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -92,7 +102,10 @@ def create_app(
     app.state.ledger = ledger or PostgresLedger(engine)
     # Nothing is sent while a request is being answered: mail is queued in the
     # database and a worker delivers it. See ADR 0007.
-    app.state.mailer = mailer or OutboxMailer(PostgresOutbox(engine), app.state.clock)
+    app.state.outbox = outbox or PostgresOutbox(engine)
+    app.state.mailer = mailer or OutboxMailer(app.state.outbox, app.state.clock)
+    app.state.jobs = jobs or PostgresJobLog(engine)
+    app.state.metrics = Metrics()
     if links is None or statement_links is None:
         secret = _signing_secret(settings)
         links = links or HmacManageLinks(secret)
@@ -132,14 +145,19 @@ def create_app(
     api.include_router(series.router)
     api.include_router(billing.panel)
     api.include_router(billing.shared)
-    # The health checks stay outside: whatever watches the process must never be told to wait.
+    # The health checks and the metrics stay outside: whatever watches the
+    # process must never be told to wait.
     app.include_router(health.router)
+    app.include_router(metrics.router)
     app.include_router(api)
 
     app.add_middleware(SecurityHeaders)
     if settings.public_url.startswith("https://"):
-        # Outermost, so that nothing is answered over plain HTTP first.
+        # Before everything that answers, so that nothing is answered over plain HTTP first.
         app.add_middleware(HttpsRedirect)
+    # Outermost: it gives the request its id and writes down how it ended,
+    # whoever ended it. See ADR 0011.
+    app.add_middleware(Observed, metrics=app.state.metrics)
     if settings.static_dir is not None:
         # Last, so that it only sees what no API route claimed.
         app.mount("/", WebApp(settings.static_dir), name="web")

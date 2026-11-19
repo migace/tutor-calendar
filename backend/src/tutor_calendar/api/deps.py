@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tutor_calendar.api.metrics import Metrics
+from tutor_calendar.application.background import MeasureBackgroundWork
 from tutor_calendar.application.billing import (
     FindStudent,
     ListAccounts,
@@ -21,10 +23,12 @@ from tutor_calendar.application.list_available_slots import ListAvailableSlots
 from tutor_calendar.application.ports import (
     Clock,
     CredentialStore,
+    JobLog,
     Ledger,
     LessonStore,
     Mailer,
     ManageLinks,
+    Outbox,
     StatementLinks,
     StudentRecord,
     TutorRepository,
@@ -155,6 +159,19 @@ def get_change_weekly_hours(request: Request) -> ChangeWeeklyHours:
     return ChangeWeeklyHours(_tutors(request))
 
 
+def get_metrics(request: Request) -> Metrics:
+    return cast(Metrics, request.app.state.metrics)
+
+
+def get_measure_background_work(request: Request) -> MeasureBackgroundWork:
+    return MeasureBackgroundWork(
+        cast(Outbox, request.app.state.outbox),
+        _bookings(request),
+        cast(JobLog, request.app.state.jobs),
+        _clock(request),
+    )
+
+
 SessionToken = Annotated[str | None, Cookie(alias=SESSION_COOKIE, include_in_schema=False)]
 
 
@@ -198,3 +215,5 @@ ShowWeekDep = Annotated[ShowWeek, Depends(get_show_week)]
 ChangeWeeklyHoursDep = Annotated[ChangeWeeklyHours, Depends(get_change_weekly_hours)]
 SignedInTutor = Annotated[Tutor, Depends(get_signed_in_tutor)]
 OwnStudent = Annotated[StudentRecord, Depends(get_own_student)]
+MetricsDep = Annotated[Metrics, Depends(get_metrics)]
+MeasureBackgroundWorkDep = Annotated[MeasureBackgroundWork, Depends(get_measure_background_work)]

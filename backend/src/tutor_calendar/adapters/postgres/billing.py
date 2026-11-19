@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tutor_calendar.adapters.postgres.tables import ledger_entries, outbox
 from tutor_calendar.application.background import retry_pause
-from tutor_calendar.application.ports import Delivery, Email
+from tutor_calendar.application.ports import Delivery, Email, OutboxBacklog
 from tutor_calendar.domain.billing import EntryKind, LedgerEntry
 
 
@@ -106,6 +106,13 @@ class PostgresOutbox:
             sent += outcome
             failed += not outcome
         return Delivery(sent, failed)
+
+    async def backlog(self) -> OutboxBacklog:
+        unsent = outbox.c.sent_at.is_(None)
+        query = select(func.count(), func.min(outbox.c.created_at)).where(unsent)
+        async with self._engine.connect() as connection:
+            waiting, oldest = (await connection.execute(query)).one()
+        return OutboxBacklog(waiting, oldest)
 
     async def _deliver_one(
         self, now: datetime, send: Callable[[Email], Awaitable[None]]

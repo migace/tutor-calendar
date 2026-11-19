@@ -1,7 +1,8 @@
 """The dependency rules from ADR 0001, enforced.
 
 Inner layers never import outer ones, the calendar knows nothing about money,
-and the adapters that run in production never lean on the fakes.
+the adapters that run in production never lean on the fakes, and nothing
+inside the use cases writes a log or counts a metric (ADR 0011).
 """
 
 import ast
@@ -13,11 +14,16 @@ PACKAGE = "tutor_calendar"
 SOURCE = Path(__file__).parents[2] / "src" / PACKAGE
 
 FRAMEWORKS = {"fastapi", "starlette", "sqlalchemy", "alembic", "pydantic", "pydantic_settings"}
+# Logs and metrics are written at the edges. A use case says what happened by
+# what it returns and raises, and whoever called it decides what to record.
+OBSERVING = {"logging", "prometheus_client", "opentelemetry", f"{PACKAGE}.logs"}
 FAKES = {f"{PACKAGE}.adapters.{path.stem}" for path in (SOURCE / "adapters").glob("in_memory_*.py")}
 # What the code under each folder must not import.
 FORBIDDEN = {
-    "domain": FRAMEWORKS | {f"{PACKAGE}.{layer}" for layer in ("application", "adapters", "api")},
-    "application": FRAMEWORKS | {f"{PACKAGE}.{layer}" for layer in ("adapters", "api")},
+    "domain": FRAMEWORKS
+    | OBSERVING
+    | {f"{PACKAGE}.{layer}" for layer in ("application", "adapters", "api")},
+    "application": FRAMEWORKS | OBSERVING | {f"{PACKAGE}.{layer}" for layer in ("adapters", "api")},
     # Billing charges for lessons, so it reads the calendar. The calendar must
     # keep working with billing taken out.
     "domain/scheduling": {f"{PACKAGE}.domain.billing"},
@@ -60,4 +66,4 @@ def test_code_imports_only_what_it_may(layer: str) -> None:
 
 def test_the_fakes_are_found() -> None:
     # The rule about fakes is only as good as this list.
-    assert len(FAKES) >= 4
+    assert len(FAKES) >= 5

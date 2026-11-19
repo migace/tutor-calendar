@@ -237,3 +237,12 @@ outbox = Table(
     Column("sent_at", DateTime(timezone=True), nullable=True),
 )
 Index("outbox_waiting_idx", outbox.c.available_at, postgresql_where=outbox.c.sent_at.is_(None))
+
+# When each background job last finished without an error. One row per job,
+# written by the worker and read for the metrics. See ADR 0011.
+background_jobs = Table(
+    "background_jobs",
+    metadata,
+    Column("name", Text, primary_key=True),
+    Column("last_succeeded_at", DateTime(timezone=True), nullable=False),
+)

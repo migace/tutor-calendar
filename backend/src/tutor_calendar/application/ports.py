@@ -166,6 +166,10 @@ class SettlementQueue(Protocol):
 
     async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None: ...
 
+    async def count_awaiting_settlement(self, now: datetime) -> int:
+        """How many lessons ``awaiting_settlement`` would return if it had no limit."""
+        ...
+
 
 class ReminderQueue(Protocol):
     """Lessons waiting for a reminder, for the worker."""
@@ -291,6 +295,13 @@ class Delivery:
     failed: int
 
 
+@dataclass(frozen=True, slots=True)
+class OutboxBacklog:
+    waiting: int
+    # When the oldest of them was queued. None when nothing is waiting.
+    oldest_queued_at: datetime | None
+
+
 class Outbox(Protocol):
     """E-mail waiting to be sent. See ADR 0007."""
 
@@ -306,4 +317,33 @@ class Outbox(Protocol):
         message can be sent twice if a worker dies after sending and before
         recording it: delivery is at least once, not exactly once.
         """
+        ...
+
+    async def backlog(self) -> OutboxBacklog:
+        """How many messages have not been sent, and how long the oldest has waited.
+
+        Every unsent message counts, also one whose send failed and that is
+        pausing before its next try: its age is counted from when it was first
+        queued, so a message that keeps failing keeps growing older.
+        """
+        ...
+
+
+class JobLog(Protocol):
+    """When each background job last finished without an error. See ADR 0011.
+
+    The worker writes it and the web process reads it, which is how one process
+    can say whether another is still doing its work.
+    """
+
+    async def record_success(self, job: str, at: datetime) -> None:
+        """Note that ``job`` finished at ``at``.
+
+        The record only moves forwards: with several workers, a slow one that
+        reports late does not put the time back.
+        """
+        ...
+
+    async def last_successes(self) -> dict[str, datetime]:
+        """The latest recorded finish of every job that has ever finished."""
         ...

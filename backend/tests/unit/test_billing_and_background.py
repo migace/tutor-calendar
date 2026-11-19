@@ -11,9 +11,18 @@ from tests.factories import ANNA, FIRST_SLOT, LINKS, NOW, STATEMENT_LINKS, a_tut
 from tutor_calendar.adapters.clock import FixedClock
 from tutor_calendar.adapters.in_memory_billing import InMemoryLedger, InMemoryOutbox
 from tutor_calendar.adapters.in_memory_bookings import InMemoryBookingRepository
+from tutor_calendar.adapters.in_memory_jobs import InMemoryJobLog
 from tutor_calendar.adapters.in_memory_tutors import InMemoryTutorRepository
 from tutor_calendar.adapters.mail import InMemoryMailer
-from tutor_calendar.application.background import DeliverOutbox, SendReminders, SettleLessons
+from tutor_calendar.application.background import (
+    DELIVER,
+    SETTLE,
+    BackgroundWork,
+    DeliverOutbox,
+    MeasureBackgroundWork,
+    SendReminders,
+    SettleLessons,
+)
 from tutor_calendar.application.billing import (
     FindStudent,
     ListAccounts,
@@ -442,3 +451,64 @@ class TestReminders:
         second = await scenario.bookings.record_reminders([(lesson, reminder)], scenario.now)
 
         assert (first, second) == (1, 0)
+
+
+class TestMeasuringTheBackgroundWork:
+    """What the metrics say about the queues. See ADR 0011."""
+
+    async def measure(
+        self, scenario: Scenario, jobs: InMemoryJobLog, at: datetime
+    ) -> BackgroundWork:
+        measure = MeasureBackgroundWork(scenario.outbox, scenario.bookings, jobs, FixedClock(at))
+        return await measure.execute()
+
+    async def test_with_nothing_to_do_everything_is_zero(self, scenario: Scenario) -> None:
+        assert await self.measure(scenario, InMemoryJobLog(), NOW) == BackgroundWork(
+            unsent_messages=0,
+            oldest_unsent_age=timedelta(0),
+            lessons_awaiting_settlement=0,
+            last_success={},
+        )
+
+    async def test_it_reports_what_is_waiting_and_for_how_long(self, scenario: Scenario) -> None:
+        jobs = InMemoryJobLog()
+        await scenario.book(FIRST_SLOT)
+        await scenario.book(FIRST_SLOT + DAY)
+        after_the_first = FIRST_SLOT + 2 * HOUR
+        await jobs.record_success(DELIVER, NOW)
+
+        work = await self.measure(scenario, jobs, after_the_first)
+
+        # Two confirmations nobody has sent, the older queued when the booking was made.
+        assert work.unsent_messages == 2
+        assert work.oldest_unsent_age == after_the_first - NOW
+        # One lesson is over and not charged; the other has not happened.
+        assert work.lessons_awaiting_settlement == 1
+        assert work.last_success == {DELIVER: NOW}
+
+    async def test_the_numbers_fall_as_the_jobs_do_their_work(self, scenario: Scenario) -> None:
+        jobs = InMemoryJobLog()
+        await scenario.book(FIRST_SLOT)
+        later = FIRST_SLOT + 2 * HOUR
+        clock = FixedClock(later)
+
+        await SettleLessons(scenario.bookings, scenario.ledger, clock).execute()
+        await jobs.record_success(SETTLE, later)
+        await DeliverOutbox(scenario.outbox, InMemoryMailer(), clock).execute()
+        await jobs.record_success(DELIVER, later)
+
+        assert await self.measure(scenario, jobs, later) == BackgroundWork(
+            unsent_messages=0,
+            oldest_unsent_age=timedelta(0),
+            lessons_awaiting_settlement=0,
+            last_success={SETTLE: later, DELIVER: later},
+        )
+
+    async def test_a_clock_behind_the_one_that_queued_never_gives_a_negative_age(
+        self, scenario: Scenario
+    ) -> None:
+        scenario.outbox.put(Email("anna@example.com", "Hello", "…"), NOW + HOUR)
+
+        work = await self.measure(scenario, InMemoryJobLog(), NOW)
+
+        assert work.oldest_unsent_age == timedelta(0)

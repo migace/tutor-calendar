@@ -21,8 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from tests.factories import FIRST_SLOT, LINKS, NOW, SECRET
 from tutor_calendar.adapters.clock import FixedClock
 from tutor_calendar.adapters.mail import InMemoryMailer, SmtpMailer
-from tutor_calendar.adapters.postgres.billing import PostgresLedger
+from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOutbox
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
+from tutor_calendar.adapters.postgres.jobs import PostgresJobLog
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
 from tutor_calendar.application.book_lesson import BookLesson
 from tutor_calendar.application.ports import Email
@@ -226,6 +227,96 @@ class TestTheWorker:
         ).run_once()
 
         assert (done["reminders"], done["sent"]) == (0, 1)
+
+    async def test_it_writes_down_each_job_it_finished(
+        self, engine: AsyncEngine, settings: Settings
+    ) -> None:
+        await self.book(engine, FIRST_SLOT + 2 * DAY, NOW)
+
+        await Worker(settings, engine, FixedClock(NOW), InMemoryMailer()).run_once()
+        later = NOW + timedelta(seconds=30)
+        await Worker(settings, engine, FixedClock(later), InMemoryMailer()).run_once()
+
+        assert await PostgresJobLog(engine).last_successes() == {
+            "settle": later,
+            "remind": later,
+            "deliver": later,
+        }
+
+    async def test_a_job_that_failed_keeps_the_time_it_last_succeeded(
+        self, engine: AsyncEngine, settings: Settings, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        class Broken:
+            async def execute(self) -> int:
+                raise RuntimeError("the ledger is on fire")
+
+        await Worker(settings, engine, FixedClock(NOW), InMemoryMailer()).run_once()
+        later = NOW + timedelta(seconds=30)
+        worker = Worker(settings, engine, FixedClock(later), InMemoryMailer())
+        worker._settle = Broken()  # type: ignore[assignment]
+
+        done = await worker.run_once()
+
+        # The other jobs ran, and only they moved on.
+        assert done["charged"] == 0
+        assert await PostgresJobLog(engine).last_successes() == {
+            "settle": NOW,
+            "remind": later,
+            "deliver": later,
+        }
+        [failure] = [record for record in caplog.records if record.levelname == "ERROR"]
+        assert failure.getMessage() == "settling lessons failed"
+        assert failure.__dict__["job"] == "settle"
+
+    async def test_mail_the_server_refuses_shows_as_a_backlog_not_as_a_failed_job(
+        self, engine: AsyncEngine, settings: Settings
+    ) -> None:
+        class Down:
+            async def send(self, email: Email) -> None:
+                raise ConnectionError("mail server is down")
+
+        await self.book(engine, FIRST_SLOT + 2 * DAY, NOW)
+
+        await Worker(settings, engine, FixedClock(NOW), Down()).run_once()
+
+        # The job ran to its end; what it could not send is still there to be counted.
+        assert (await PostgresJobLog(engine).last_successes())["deliver"] == NOW
+        backlog = await PostgresOutbox(engine).backlog()
+        assert (backlog.waiting, backlog.oldest_queued_at) == (1, NOW)
+
+    async def test_a_record_that_cannot_be_written_does_not_stop_the_work(
+        self, engine: AsyncEngine, settings: Settings, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        class Unwritable:
+            async def record_success(self, job: str, at: datetime) -> None:
+                raise ConnectionError("the table is locked")
+
+            async def last_successes(self) -> dict[str, datetime]:
+                return {}
+
+        mailbox = InMemoryMailer()
+        await self.book(engine, FIRST_SLOT + 2 * DAY, NOW)
+
+        done = await Worker(settings, engine, FixedClock(NOW), mailbox, Unwritable()).run_once()
+
+        assert done["sent"] == 1
+        assert len(mailbox.sent) == 1
+        assert [
+            record.getMessage() for record in caplog.records if record.levelname == "ERROR"
+        ] == [
+            "recording that settling lessons finished failed",
+            "recording that queueing reminders finished failed",
+            "recording that delivering mail finished failed",
+        ]
+
+    async def test_without_a_signing_key_no_reminder_job_is_recorded(
+        self, engine: AsyncEngine, database_url: str
+    ) -> None:
+        keyless = Settings(database_url=database_url, secret_key=None)
+
+        await Worker(keyless, engine, FixedClock(NOW), InMemoryMailer()).run_once()
+
+        assert set(await PostgresJobLog(engine).last_successes()) == {"settle", "deliver"}
 
 
 class Inbox:

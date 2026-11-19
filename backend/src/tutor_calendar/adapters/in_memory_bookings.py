@@ -110,6 +110,9 @@ class InMemoryBookingRepository:
     async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None:
         self._settled.update(booking_ids)
 
+    async def count_awaiting_settlement(self, now: datetime) -> int:
+        return len(await self.awaiting_settlement(now, limit=len(self._bookings)))
+
     async def due_for_reminder(self, now: datetime, lead: timedelta, limit: int) -> list[Booking]:
         due = [
             booking

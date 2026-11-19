@@ -2496,7 +2496,7 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Readiness: the database answers",
+        "summary": "Readiness: the database answers and has the migrations this version needs",
         "tags": [
           "health"
         ]

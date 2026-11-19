@@ -372,7 +372,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Readiness: the database answers */
+        /** Readiness: the database answers and has the migrations this version needs */
         get: operations["ready_health_ready_get"];
         put?: never;
         post?: never;
