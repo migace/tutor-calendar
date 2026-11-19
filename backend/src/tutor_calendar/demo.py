@@ -9,6 +9,7 @@ Safe to run repeatedly: what is already there is left untouched.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from datetime import time, timedelta
 from uuid import UUID
@@ -24,6 +25,9 @@ from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
 from tutor_calendar.config import Settings
 from tutor_calendar.demo_activity import populate
 from tutor_calendar.domain.scheduling import Schedule, Tutor, Weekday, WeeklyRule
+from tutor_calendar.logs import configure_logging
+
+logger = logging.getLogger("tutor_calendar.demo")
 
 DEMO_TUTOR_ID = UUID("0b5c1f4e-6f0a-4c59-9a43-6d2f6f0c7d11")
 DEMO_SLUG = "demo"
@@ -101,8 +105,10 @@ async def run(settings: Settings, *, reset: bool) -> list[str]:
 
 
 def main() -> None:
-    for line in asyncio.run(run(Settings(), reset="--reset" in sys.argv[1:])):
-        print(line)
+    settings = Settings()
+    configure_logging("demo", settings.log_format)
+    for line in asyncio.run(run(settings, reset="--reset" in sys.argv[1:])):
+        logger.info(line)
 
 
 if __name__ == "__main__":

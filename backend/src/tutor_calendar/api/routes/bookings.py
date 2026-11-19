@@ -4,7 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from tutor_calendar.api.deps import BookLessonDep
+from tutor_calendar.api.deps import BookLessonDep, MetricsDep
+from tutor_calendar.api.metrics import BookingOutcome
 from tutor_calendar.api.rate_limit import BOOKINGS, Limited
 from tutor_calendar.api.schemas import BookingIn, BookingOut, ErrorOut
 from tutor_calendar.application.errors import (
@@ -62,19 +63,27 @@ async def book_lesson(
     use_case: BookLessonDep,
     response: Response,
     idempotency_key: IdempotencyKey,
+    metrics: MetricsDep,
 ) -> BookingOut:
+    # The outcomes are counted here, at the edge. The use case reports them
+    # the way it always has, by what it returns and raises. See ADR 0011.
     try:
         student = Student(body.student_name, body.student_email)
         result = await use_case.execute(slug, body.start, student, idempotency_key)
     except TutorNotFoundError as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(error)) from error
-    except (SlotTakenError, SlotNotOfferedError) as error:
+    except SlotTakenError as error:
+        metrics.booking(BookingOutcome.TAKEN)
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except SlotNotOfferedError as error:
+        metrics.booking(BookingOutcome.NOT_OFFERED)
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
     except (IdempotencyKeyReusedError, ValueError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
 
     if result.replayed:
         response.headers["Idempotency-Replayed"] = "true"
+    metrics.booking(BookingOutcome.REPLAYED if result.replayed else BookingOutcome.BOOKED)
     slot = result.booking.slot
     return BookingOut(
         id=result.booking.id, start=slot.start, end=slot.end, manage_token=result.manage_token

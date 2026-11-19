@@ -176,18 +176,19 @@ class PostgresBookingRepository:
         return student
 
     async def awaiting_settlement(self, now: datetime, limit: int) -> list[Booking]:
-        # The same rule as ``is_settled`` in the domain, said in SQL.
-        final = (bookings.c.status != LessonStatus.CONFIRMED.value) | (
-            func.upper(bookings.c.during) <= now
-        )
         query = (
             select(bookings)
-            .where(bookings.c.settled_at.is_(None), final)
+            .where(*_awaiting_settlement(now))
             .order_by(func.lower(bookings.c.during))
             .limit(limit)
         )
         async with self._engine.connect() as connection:
             return [_booking(row) for row in await connection.execute(query)]
+
+    async def count_awaiting_settlement(self, now: datetime) -> int:
+        query = select(func.count()).select_from(bookings).where(*_awaiting_settlement(now))
+        async with self._engine.connect() as connection:
+            return (await connection.execute(query)).scalar_one()
 
     async def mark_settled(self, booking_ids: Sequence[UUID], now: datetime) -> None:
         if not booking_ids:
@@ -318,6 +319,14 @@ class PostgresBookingRepository:
             if getattr(error.orig, "sqlstate", None) == _EXCLUSION_VIOLATION:
                 raise SeriesConflictError([lesson.slot for lesson in lessons]) from error
             raise
+
+
+def _awaiting_settlement(now: datetime) -> tuple[Any, Any]:
+    # The same rule as ``is_settled`` in the domain, said in SQL.
+    final = (bookings.c.status != LessonStatus.CONFIRMED.value) | (
+        func.upper(bookings.c.during) <= now
+    )
+    return bookings.c.settled_at.is_(None), final
 
 
 async def _queue_behind_other_writers(connection: AsyncConnection, tutor_id: UUID) -> None:

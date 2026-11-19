@@ -11,12 +11,15 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from tests.conftest import BACKEND
 from tests.factories import FIRST_SLOT
+from tutor_calendar.api.main import create_app
+from tutor_calendar.config import Settings
 
 pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
@@ -85,6 +88,51 @@ async def test_replicas_starting_together_all_migrate_cleanly(
     # One row: the schema was built once and every replica agrees on where it stands.
     assert len(versions) == 1
     assert bookings is not None
+
+
+def _readiness(database_url: str) -> tuple[int, dict[str, str]]:
+    """What a fresh web process answers when asked whether it can serve."""
+    with TestClient(create_app(Settings(database_url=database_url))) as client:
+        response = client.get("/health/ready")
+        assert client.get("/health").status_code == 200
+    body: dict[str, str] = response.json()
+    return response.status_code, body
+
+
+async def test_a_process_is_ready_only_once_the_database_has_its_migrations(
+    empty_database_url: str, empty_database: AsyncEngine
+) -> None:
+    # Nothing applied: the database answers, and has none of the tables.
+    assert await asyncio.to_thread(_readiness, empty_database_url) == (
+        503,
+        {"detail": "database has not been migrated"},
+    )
+
+    # One migration short, as when a new version starts before anyone has migrated.
+    code, output = await _migrate(empty_database_url, "0006")
+    assert code == 0, output
+    assert await asyncio.to_thread(_readiness, empty_database_url) == (
+        503,
+        {"detail": "database is behind: it is at migration 0006 and this version needs 0007"},
+    )
+
+    code, output = await _migrate(empty_database_url)
+    assert code == 0, output
+    assert await asyncio.to_thread(_readiness, empty_database_url) == (200, {"status": "ok"})
+
+
+async def test_a_process_stays_ready_when_a_newer_version_has_migrated_further(
+    empty_database_url: str, empty_database: AsyncEngine
+) -> None:
+    # During a deployment the new version migrates while the old one is still
+    # serving. Migrations are written so that the old one can carry on, and
+    # calling it unready would take every old process out of service at once.
+    code, output = await _migrate(empty_database_url)
+    assert code == 0, output
+    async with empty_database.begin() as connection:
+        await connection.execute(text("UPDATE alembic_version SET version_num = '9999'"))
+
+    assert await asyncio.to_thread(_readiness, empty_database_url) == (200, {"status": "ok"})
 
 
 def _enrol_everyone_known() -> str:

@@ -80,7 +80,8 @@ async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
     async with engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE tutors, bookings, lesson_series, ledger_entries, students, outbox CASCADE"
+                "TRUNCATE tutors, bookings, lesson_series, ledger_entries, students, outbox,"
+                " background_jobs CASCADE"
             )
         )
     try:

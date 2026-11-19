@@ -2,13 +2,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from tutor_calendar.logs import LogFormat
 
 
 class Settings(BaseSettings):
     """Runtime configuration, read from ``TC_*`` environment variables or ``.env``."""
 
-    model_config = SettingsConfigDict(env_prefix="TC_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="TC_",
+        env_file=".env",
+        extra="ignore",
+        # A setting that is refused is named, not quoted: most of them are secrets.
+        hide_input_in_errors=True,
+    )
 
     database_url: str = "postgresql+asyncpg://tutor:tutor@localhost:5432/tutor_calendar"
     cors_origins: list[str] = ["http://localhost:5173"]
@@ -38,6 +47,14 @@ class Settings(BaseSettings):
     # one is made up at start, and links stop working when the process restarts.
     secret_key: str | None = None
 
+    # Whoever sends this as a bearer token may read /metrics. Without it the
+    # endpoint answers 404: the application's port may be open to everyone,
+    # and nothing else guards it. See ADR 0011.
+    metrics_token: str | None = None
+    # "json" is one object per line, for a machine to read. "text" is for a
+    # person watching a terminal.
+    log_format: LogFormat = "json"
+
     # Outgoing mail. Without a host, the worker writes messages to its log.
     smtp_host: str | None = None
     smtp_port: int = 587
@@ -47,3 +64,15 @@ class Settings(BaseSettings):
     mail_from: str = "Tutor Calendar <no-reply@localhost>"
     # How often the worker looks for lessons to charge and mail to send.
     worker_interval_seconds: float = 30.0
+
+    @field_validator("metrics_token")
+    @classmethod
+    def _a_long_token_or_none(cls, value: str | None) -> str | None:
+        if not value:
+            # Compose passes an unset variable on as an empty one.
+            return None
+        if len(value) < 32:
+            # Nothing limits how often the endpoint may be tried, so the
+            # token has to be too long to guess.
+            raise ValueError("must be at least 32 characters")
+        return value

@@ -35,4 +35,5 @@ USER app
 
 EXPOSE 8000
 # Migrating and seeding on start keeps deployment to one step. Both are safe to repeat.
-CMD ["sh", "-c", "alembic upgrade head && python -m tutor_calendar.demo && exec uvicorn tutor_calendar.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# All three write their logs as JSON lines; the last one listens on $PORT, 8000 if unset.
+CMD ["sh", "-c", "alembic upgrade head && python -m tutor_calendar.demo && exec python -m tutor_calendar.web"]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import text
@@ -11,10 +10,13 @@ from sqlalchemy.pool import NullPool
 
 from tutor_calendar.adapters.postgres.tables import metadata
 from tutor_calendar.config import Settings
+from tutor_calendar.logs import configure_logging
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Run from the command line, as a starting container does. The tests
+    # migrate without an ini file and keep the logging they already have.
+    configure_logging("migrate", Settings().log_format)
 
 # Migrations are written by hand. The metadata is here so that a test can ask
 # Alembic whether the tables the code expects are the tables the migrations build.

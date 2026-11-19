@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import UUID
 
 from tutor_calendar.application.background import retry_pause
-from tutor_calendar.application.ports import Delivery, Email
+from tutor_calendar.application.ports import Delivery, Email, OutboxBacklog
 from tutor_calendar.domain.billing import LedgerEntry
 
 
@@ -47,6 +47,7 @@ class InMemoryLedger:
 @dataclass(slots=True)
 class _Queued:
     email: Email
+    queued_at: datetime
     available_at: datetime
     attempts: int = 0
     sent: bool = False
@@ -65,7 +66,7 @@ class InMemoryOutbox:
         return [queued.email for queued in self._queue if not queued.sent]
 
     def put(self, email: Email, now: datetime) -> None:
-        self._queue.append(_Queued(email, now))
+        self._queue.append(_Queued(email, queued_at=now, available_at=now))
 
     async def add(self, email: Email, now: datetime) -> None:
         self.put(email, now)
@@ -96,3 +97,7 @@ class InMemoryOutbox:
             finally:
                 queued.claimed = False
         return Delivery(sent, failed)
+
+    async def backlog(self) -> OutboxBacklog:
+        waiting = [queued.queued_at for queued in self._queue if not queued.sent]
+        return OutboxBacklog(len(waiting), min(waiting, default=None))

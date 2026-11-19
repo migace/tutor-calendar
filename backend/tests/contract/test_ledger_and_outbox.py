@@ -17,7 +17,13 @@ from tutor_calendar.adapters.postgres.billing import PostgresLedger, PostgresOut
 from tutor_calendar.adapters.postgres.bookings import PostgresBookingRepository
 from tutor_calendar.adapters.postgres.tutors import PostgresTutorRepository
 from tutor_calendar.application.errors import SlotTakenError
-from tutor_calendar.application.ports import Email, Ledger, LessonStore, Outbox
+from tutor_calendar.application.ports import (
+    Email,
+    Ledger,
+    LessonStore,
+    Outbox,
+    OutboxBacklog,
+)
 from tutor_calendar.domain.billing import EntryKind, LedgerEntry, charge_for
 from tutor_calendar.domain.scheduling import Actor, AlwaysFree, Student, Tutor
 
@@ -283,6 +289,70 @@ class LedgerAndOutboxContract:
         )
 
         assert queued == 0
+
+    # --- what is still waiting, for the metrics. See ADR 0011. ---
+
+    async def test_an_outbox_with_nothing_waiting_has_no_backlog(self, stores: Stores) -> None:
+        assert await stores.outbox.backlog() == OutboxBacklog(0, None)
+
+        await stores.outbox.add(HELLO, NOW)
+        await stores.outbox.deliver_due(NOW, Mailbox().send, 10)
+
+        # A sent message is still stored, and is not a backlog.
+        assert await stores.outbox.backlog() == OutboxBacklog(0, None)
+
+    async def test_the_backlog_counts_what_is_unsent_and_dates_the_oldest(
+        self, stores: Stores
+    ) -> None:
+        await stores.outbox.add(HELLO, NOW + HOUR)
+        await stores.outbox.add(Email("b@example.com", "Earlier", "…"), NOW)
+        await stores.outbox.add(Email("c@example.com", "Latest", "…"), NOW + 2 * HOUR)
+
+        assert await stores.outbox.backlog() == OutboxBacklog(3, NOW)
+
+        # The oldest goes out; the next oldest is the one that has waited longest.
+        await stores.outbox.deliver_due(NOW, Mailbox().send, 10)
+        assert await stores.outbox.backlog() == OutboxBacklog(2, NOW + HOUR)
+
+    async def test_a_message_that_keeps_failing_keeps_its_place_in_the_backlog(
+        self, stores: Stores
+    ) -> None:
+        await stores.outbox.add(HELLO, NOW)
+
+        await stores.outbox.deliver_due(NOW, Mailbox(fail=True).send, 10)
+
+        # It is pausing before its next try and would not be picked up now, but
+        # it has not been sent, and it has been waiting since it was queued.
+        assert (await stores.outbox.deliver_due(NOW, Mailbox().send, 10)).sent == 0
+        assert await stores.outbox.backlog() == OutboxBacklog(1, NOW)
+
+    async def test_a_confirmation_queued_with_a_booking_is_in_the_backlog(
+        self, stores: Stores
+    ) -> None:
+        await stores.bookings.add(a_booking(stores.tutor.id), "key-1", HELLO)
+
+        assert await stores.outbox.backlog() == OutboxBacklog(1, NOW)
+
+    async def test_lessons_awaiting_settlement_are_counted_without_a_limit(
+        self, stores: Stores
+    ) -> None:
+        for n in range(3):
+            await stores.bookings.add(a_booking(stores.tutor.id, FIRST_SLOT + n * HOUR), f"k{n}")
+        upcoming = await stores.bookings.add(a_booking(stores.tutor.id, FIRST_SLOT + DAY), "k9")
+        after_three = FIRST_SLOT + 5 * HOUR
+
+        assert await stores.bookings.count_awaiting_settlement(NOW) == 0
+        assert await stores.bookings.count_awaiting_settlement(after_three) == 3
+        # The count is of everything waiting, not of one batch of it.
+        waiting = await stores.bookings.awaiting_settlement(after_three, 2)
+        assert len(waiting) == 2
+
+        await stores.bookings.mark_settled([lesson.id for lesson in waiting], after_three)
+        assert await stores.bookings.count_awaiting_settlement(after_three) == 1
+
+        # A cancelled lesson's cost is final at once, long before its time.
+        await stores.bookings.apply([(upcoming, upcoming.cancel(Actor.TUTOR, NOW, AlwaysFree()))])
+        assert await stores.bookings.count_awaiting_settlement(NOW) == 1
 
 
 class TestInMemory(LedgerAndOutboxContract):
