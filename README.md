@@ -9,7 +9,7 @@ looks different: the same students at the same times, paid for in blocks, with
 "can we move Thursday?" as the most common request. This project is built
 around that workflow.
 
-> **Status: the six-week roadmap is built, and a demo is running.**
+> **Status: all six stages of the [roadmap](#roadmap) are built, and a demo is running.**
 > A visitor can book a lesson and cancel it with a link. A tutor can sign in, see
 > their week, change their hours, cancel lessons, set up weekly lessons and keep
 > track of prepaid lesson time, with a statement to share with the parent. A
@@ -333,3 +333,7 @@ Said here so that nobody has to find out by trying:
 
 Deliberately out of scope: online payments, Google Calendar sync, SMS, schools
 with several teachers, a native mobile app.
+
+## License
+
+[MIT](LICENSE).
