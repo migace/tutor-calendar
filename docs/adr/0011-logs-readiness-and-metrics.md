@@ -55,6 +55,10 @@ Four things were already decided and shape the answer:
      only thing here that needs it, and they keep it in memory.
    - Health checks and metric readings that succeed are left out. They would
      be most of the log. Ones that fail are written.
+   - The server's WebSocket support is switched off. The application has no
+     WebSockets, and with it on uvicorn answers a handshake itself and logs
+     the caller's address and the whole query string, whatever its access log
+     is set to. Found in review; a test now sends one.
 
 5. **The database driver hides the values of a failed statement.** Otherwise
    the traceback of a database error quotes its parameters, which are names
@@ -137,14 +141,16 @@ Four things were already decided and shape the answer:
   round after it change the metrics.
 - The real processes are started and every line they write is parsed:
   `alembic upgrade head`, the worker, and the web process answering a request
-  with a query string in it.
-- Eighteen mutations were tried by hand, among them: taking any id the caller
+  with a query string in it and refusing a WebSocket handshake with a token
+  in it.
+- Nineteen mutations were tried by hand, among them: taking any id the caller
   sends, leaving addresses in paths, logging the query string, labelling by
   path, serving metrics without the token, not telling a replay from a
   booking, readiness that ignores a database that is behind, readiness that
   refuses one that is ahead, a backlog dated from the next try, a job recorded
-  although it failed, a use case importing `logging`, and uvicorn's access log
-  left on. Each made at least one test fail.
+  although it failed, a use case importing `logging`, uvicorn's access log
+  left on, and its WebSocket support left on. Each made at least one test
+  fail.
 - The image was built and the demo's Compose file started from it on a
   developer's machine. The containers became healthy, every line they wrote
   was JSON, and a booking, the same request again and a rival for the same
@@ -211,6 +217,10 @@ Four things were already decided and shape the answer:
   that.
 - **Only an address is cut out of a path.** Anything else a visitor types
   into one is written, up to 256 characters.
+- **A setting that is refused at start is named and not quoted**, so a token
+  that was too short does not end up in the log of every container that
+  failed to start. That refusal is the one thing still written as plain text:
+  it happens before logging is set up.
 - **The proxy in front and the host keep logs of their own**, with the
   visitor's address and the full URL. Nothing here changes what they write.
 - **Readiness cannot tell a newer version's database from a stranger's.** A

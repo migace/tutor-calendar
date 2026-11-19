@@ -30,8 +30,10 @@ _SAFE_ID = re.compile(r"[A-Za-z0-9._-]{8,64}")
 # would be most of the log and say nothing; their failures are still written.
 _QUIET_ROUTES = frozenset({"/health", "/health/ready", "/metrics"})
 
-# The client went away before an answer was sent. Not a status this
-# application ever sends: the number is borrowed from nginx.
+# The request ended without an answer being started: it was cancelled, as at
+# shutdown. Not a status this application ever sends; the number is borrowed
+# from nginx. A client that merely hangs up does not show as this, because the
+# server lets the application finish and discards what it sends.
 CLIENT_CLOSED_REQUEST = 499
 
 _MAX_PATH = 256
@@ -67,10 +69,10 @@ class RouteTemplates:
     def __init__(self) -> None:
         self._whole: dict[int, str] = {}
 
-    def of(self, scope: Scope) -> str:
+    def of(self, scope: Scope, status: int) -> str:
         route = scope.get("route")
         if route is None:
-            return self._without_a_route(scope)
+            return self._without_a_route(scope, status)
         if id(route) not in self._whole:
             # The first request, or a route added since the last look.
             self._look(scope)
@@ -84,9 +86,12 @@ class RouteTemplates:
             if context.path is not None
         }
 
-    def _without_a_route(self, scope: Scope) -> str:
+    def _without_a_route(self, scope: Scope, status: int) -> str:
         if isinstance(scope.get("endpoint"), StaticFiles):
-            return "static"
+            # The web app is mounted last and so is handed everything nothing
+            # else answered, such as an API path that does not exist. Only
+            # what it could serve is counted as its own.
+            return "static" if status < 400 else "unmatched"
         if scope.get("endpoint") is None:
             return "unmatched"
         # The framework's own pages, such as /docs, are answered without
@@ -140,7 +145,7 @@ class Observed:
             request_id.reset(token)
 
     def _record(self, scope: Scope, status: int, seconds: float) -> None:
-        method, route = str(scope["method"]), self._routes.of(scope)
+        method, route = str(scope["method"]), self._routes.of(scope, status)
         self._metrics.request_answered(method, route, status, seconds)
         if route in _QUIET_ROUTES and status < 400:
             return

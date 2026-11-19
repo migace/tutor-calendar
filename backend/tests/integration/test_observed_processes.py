@@ -113,6 +113,16 @@ def test_the_web_process_writes_json_lines_and_one_per_request(database_url: str
                 assert process.poll() is None, "the web process stopped"
                 assert time.monotonic() < deadline, "the web process never answered"
                 time.sleep(0.2)
+        # A WebSocket handshake, which uvicorn would otherwise answer and log
+        # by itself, address and query string included.
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as handshake:
+            handshake.sendall(
+                b"GET /ws?token=a-secret-in-a-handshake HTTP/1.1\r\n"
+                b"Host: 127.0.0.1\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n"
+                b"Sec-WebSocket-Version: 13\r\n"
+                b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+            )
+            assert handshake.recv(4096).startswith(b"HTTP/1.1 404")
         request = urllib.request.Request(f"{base}/api/v1/tutors/demo/slots?from=2026-11-16")
         try:
             with urllib.request.urlopen(request, timeout=5) as response:
@@ -130,12 +140,18 @@ def test_the_web_process_writes_json_lines_and_one_per_request(database_url: str
     assert any(line["logger"].startswith("uvicorn") for line in lines)
     # Alembic is imported for the readiness check and would announce its plugins.
     assert not [line for line in lines if line["logger"].startswith("alembic")]
-    # One line for the one request that is not a health check, and uvicorn's
+    # Our own line for each request that is not a health check, and uvicorn's
     # access log, which would have written the query string, is off.
-    [request_line] = [line for line in lines if line["logger"] == "tutor_calendar.access"]
+    refused_handshake, request_line = (
+        line for line in lines if line["logger"] == "tutor_calendar.access"
+    )
+    assert (refused_handshake["path"], refused_handshake["status"]) == ("/ws", 404)
     assert request_line["request_id"] == given
     assert request_line["path"] == "/api/v1/tutors/demo/slots"
     assert "2026-11-16" not in output
+    assert "a-secret-in-a-handshake" not in output
+    # Nor does any line name the address the requests came from.
+    assert "127.0.0.1:" not in output.replace(f"127.0.0.1:{port}", "")
 
 
 async def test_a_booking_and_the_worker_that_follows_it_show_in_the_metrics(

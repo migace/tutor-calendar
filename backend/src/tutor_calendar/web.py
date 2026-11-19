@@ -21,12 +21,17 @@ def main() -> None:
     uvicorn.run(
         "tutor_calendar.api.main:app",
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", "8000")),
+        # Compose hands an unset variable on as an empty one.
+        port=int(os.environ.get("PORT") or "8000"),
         # Handed to uvicorn so that it is applied in every process it starts.
         log_config=logging_config("web", settings.log_format),
         # The application writes its own line per request, with the request's
         # id and without the query string. See ADR 0011.
         access_log=False,
+        # The application has no WebSockets. Left on, uvicorn answers a
+        # handshake itself and writes the caller's address and the whole
+        # query string to its log, whatever access_log says.
+        ws="none",
     )
 
 

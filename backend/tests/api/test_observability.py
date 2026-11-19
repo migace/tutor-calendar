@@ -296,6 +296,26 @@ def test_an_address_typed_into_a_path_is_cut_out(
     assert "anna" not in json.dumps([page, request])
 
 
+def test_what_the_web_app_could_not_serve_is_not_counted_as_the_web_app(
+    stores: Stores, tmp_path: Path
+) -> None:
+    # The web app is mounted last, so an API path that does not exist, or a
+    # method an API route does not take, ends up being refused by it.
+    (tmp_path / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    with TestClient(an_app(stores, static_dir=tmp_path, metrics_token=TOKEN)) as client:
+        assert client.get("/panel").status_code == 200
+        assert client.get("/api/v1/no-such-thing").status_code == 404
+        assert client.post("/api/v1/config").status_code == 405
+        numbers = samples(client)
+
+    counted = {
+        (dict(labels)["route"], dict(labels)["status"]): count
+        for (name, labels), count in numbers.items()
+        if name == "tutor_calendar_http_request_duration_seconds_count"
+    }
+    assert counted == {("static", "200"): 1, ("unmatched", "404"): 1, ("unmatched", "405"): 1}
+
+
 def test_checks_that_pass_stay_out_of_the_log_and_ones_that_fail_do_not(
     stores: Stores, lines: Lines
 ) -> None:
@@ -351,8 +371,11 @@ def test_no_token_means_no_token(token: str | None) -> None:
 
 
 def test_a_token_short_enough_to_guess_is_refused_at_start() -> None:
-    with pytest.raises(ValidationError, match="at least 32 characters"):
-        Settings(metrics_token="hunter2")
+    with pytest.raises(ValidationError, match="at least 32 characters") as refusal:
+        Settings(metrics_token="hunter2-typed-by-an-operator")
+
+    # The refusal ends up in the log of every container that fails to start.
+    assert "hunter2" not in str(refusal.value)
 
 
 def test_a_booking_shows_up_in_the_metrics(client: TestClient) -> None:

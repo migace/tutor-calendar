@@ -11,7 +11,13 @@ from tutor_calendar.logs import LogFormat
 class Settings(BaseSettings):
     """Runtime configuration, read from ``TC_*`` environment variables or ``.env``."""
 
-    model_config = SettingsConfigDict(env_prefix="TC_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="TC_",
+        env_file=".env",
+        extra="ignore",
+        # A setting that is refused is named, not quoted: most of them are secrets.
+        hide_input_in_errors=True,
+    )
 
     database_url: str = "postgresql+asyncpg://tutor:tutor@localhost:5432/tutor_calendar"
     cors_origins: list[str] = ["http://localhost:5173"]
