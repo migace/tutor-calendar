@@ -104,3 +104,58 @@ jobs:
         working-directory: frontend
       - name: Fail if the committed contract differs from the code
         run: git diff --exit-code -- frontend/openapi.json frontend/src/api/schema.d.ts
+
+  e2e:
+    name: A booking goes through in a real browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: e2e/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: e2e/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # No browser image to keep in step with the package: each Playwright
+      # downloads the one browser build it was tested with, and the download
+      # is kept under that Playwright's version.
+      - name: Which Playwright is installed
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # With the download restored, this only installs the libraries the browser needs.
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
+      - name: Build the image and start it with its database, its worker and Mailpit
+        run: docker compose up --build --detach --wait
+        working-directory: .
+      # The same address the browser will use, from outside the containers.
+      - name: Wait until it is ready
+        run: >-
+          curl --fail --silent --show-error --output /dev/null
+          --retry 30 --retry-delay 1 --retry-all-errors
+          http://localhost:8000/health/ready
+      - run: pnpm test
+      - name: Collect the containers' logs
+        if: failure()
+        run: |
+          mkdir -p e2e/test-results
+          docker compose logs --no-color --timestamps > e2e/test-results/containers.log
+        working-directory: .
+      # A trace of each failed journey, to open with `playwright show-trace`.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-failure
+          path: e2e/test-results/
+          retention-days: 7

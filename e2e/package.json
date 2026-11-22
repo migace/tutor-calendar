@@ -1,0 +1,16 @@
+{
+  "name": "tutor-calendar-e2e",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.22.0",
+  "scripts": {
+    "browser": "playwright install --only-shell chromium",
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3"
+  }
+}

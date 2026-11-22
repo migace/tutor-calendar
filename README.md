@@ -219,7 +219,7 @@ flowchart TB
 |---|---|
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2 (async), Alembic, PostgreSQL 17 |
 | Frontend | React 19, TypeScript, Vite, TanStack Query |
-| Tests | pytest, Hypothesis, Vitest, Testing Library |
+| Tests | pytest, Hypothesis, Vitest, Testing Library, Playwright |
 | Tooling | uv, pnpm, Ruff, mypy (strict), ESLint, GitHub Actions |
 
 ## Develop it
@@ -280,6 +280,29 @@ They create and migrate a database of their own, `tutor_calendar_test`, and
 leave development data alone. Without PostgreSQL they are skipped locally and
 fail in CI.
 
+One more test drives a real browser through the application as it is deployed:
+the built image, its worker, PostgreSQL and Mailpit, with nothing mocked. A
+visitor books a lesson, the tutor finds it in the week and records a package on
+the student's statement, and the link in the confirmation e-mail cancels the
+lesson and gives the time back. It runs on a desktop screen in English and on a
+phone in Polish. It is the only test that would notice the web app and the API
+disagreeing about an address, a link in an e-mail opening the wrong page, a
+header that stops the built app from running, or a worker that delivers
+nothing. It reads the day and the time it booked off the page, so it does not
+care when it runs, and it can run again against the same database.
+
+```bash
+docker compose up --build --wait
+```
+
+```bash
+cd e2e && pnpm install && pnpm browser && pnpm test
+```
+
+The request limits stay on, which is enough for about five runs in ten
+minutes. Each run leaves a student and a cancelled lesson behind;
+`docker compose down -v` starts again from nothing.
+
 After changing the API, regenerate the contract and the frontend types:
 
 ```bash
@@ -307,6 +330,7 @@ frontend/src/
   api/           generated types and a thin client
   ui/            components that know nothing about tutors: Button, TextField, Notice
   features/      booking, auth, panel and billing: one folder per user-facing feature
+e2e/             one journey through the running application, in a real browser
 docs/            accessibility, load test and deployment notes, screenshots
 docs/adr/        architecture decision records
 ```
