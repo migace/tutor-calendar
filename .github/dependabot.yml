@@ -27,6 +27,22 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
+  # Playwright is pinned to an exact version, and that version decides which
+  # browser build CI downloads, so there is no second place to update.
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: monthly
+    groups:
+      e2e:
+        patterns: ["*"]
+    ignore:
+      # Both for the reasons given under /frontend.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: docker
     directory: /
     schedule:

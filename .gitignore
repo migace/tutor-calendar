@@ -11,6 +11,9 @@ __pycache__/
 node_modules/
 dist/
 
+# What the end-to-end test leaves behind when it fails
+test-results/
+
 # Local configuration and editors
 .env
 .claude/
